@@ -1,0 +1,132 @@
+ Приоритеты Backend разработки
+
+  🎯 Критический путь для MVP
+
+  Проанализировал структуру и зависимости. Backend в самом начале - есть только структура папок и pom.xml. Определяю приоритеты:
+
+  ---
+  Phase 1: Foundation (фундамент)
+
+  Цель: Базовая инфраструктура для работы приложения
+
+  1. common - общие классы
+    - BaseException (базовый exception с HTTP статусами)
+    - ApiResponse<T> (стандартный response wrapper)
+    - Constants, enums
+  2. config - конфигурации
+    - SecurityConfig (JWT + CORS)
+    - JacksonConfig (для JSONB)
+    - RedisConfig (кеширование)
+  3. security - аутентификация
+    - JWT filter, provider
+    - UserDetailsService
+  4. user - пользователи
+    - Entity, Repository, Service, Controller
+    - Registration, Login, Profile
+
+  ---
+  Phase 2: Core Domain (основа курсов)
+
+  Цель: Загрузка и хранение сценариев
+
+  5. course - курсы
+    - Course entity (хранит scenario JSON)
+    - Service для загрузки scenario_1.0.1.json
+    - Repository, Controller
+
+  ---
+  Phase 3: State Management (состояние пользователя) ⚠️ ВЫСШИЙ ПРИОРИТЕТ
+
+  Цель: Хранение прогресса и userData
+
+  6. progress - состояние прохождения
+    - UserProgress entity:
+    - userId, courseId
+  - currentSessionId, currentBlockIndex
+  - userData (JSONB) - ключевое поле!
+  - completedSessions[]
+    - ProgressService (CRUD для состояния)
+    - Repository
+
+  ---
+  Phase 4: LLM Integration ⚠️ КРИТИЧЕСКИЙ КОМПОНЕНТ
+
+  Цель: Интеграция с Claude API
+
+  7. llm - Claude API
+    - ClaudeService:
+        - generateResponse(prompt, userData) - для LLM_RESPONSE блоков
+      - chat(messages[], userData) - для LLM_CONVERSATION
+      - Stream support для real-time ответов
+    - Template resolver для промптов
+    - Error handling + retry logic
+
+  ---
+  Phase 5: Course Engine ⚠️ ЯДРО СИСТЕМЫ
+
+  Цель: Интерпретация JSON сценариев
+
+  8. engine - CourseEngine
+  CourseEngine
+  ├── processBlock(blockId, userInput)
+  ├── resolveTemplate(template, userData)
+  └── determineNext(block, userData)
+
+  BlockHandlerRegistry
+  └── Map<BlockType, BlockHandler>
+
+  BlockHandlers (12 типов):
+  ├── StaticBlockHandler
+  ├── InputBlockHandler
+  ├── SliderBlockHandler
+  ├── SingleSelectBlockHandler
+  ├── MultiSelectBlockHandler
+  ├── LlmConversationBlockHandler ➜ использует ClaudeService
+  ├── LlmResponseBlockHandler ➜ использует ClaudeService
+  ├── ExerciseBlockHandler
+  ├── VisualizationBlockHandler
+  ├── CalculationBlockHandler
+  ├── SessionCompleteBlockHandler
+  └── PaywallBlockHandler
+
+  ---
+  Phase 6: Session API
+
+  Цель: REST API для фронтенда
+
+  9. session - API endpoints
+    - POST /api/sessions/start - начать сессию
+    - GET /api/sessions/current - текущий блок
+    - POST /api/sessions/submit - отправить ответ на блок
+    - GET /api/sessions/{id}/blocks/{blockId} - получить блок
+    - SessionController + SessionService
+
+  ---
+  Phase 7: Post-MVP (после основы)
+
+  10. checkin - ежедневные чек-ины (GAD-7, настроение)
+  11. subscription - RevenueCat интеграция
+  12. gamification - стрики, ачивки
+  13. notification - push уведомления
+
+  ---
+  📋 Рекомендуемый порядок реализации
+
+  Week 1: Foundation
+    Day 1-2: common + config + security
+    Day 3-4: user (auth, registration)
+    Day 5: course (load scenario from JSON)
+
+  Week 2: Core Engine
+    Day 1-2: progress (UserProgress entity + service)
+    Day 3-4: llm (ClaudeService + template resolver)
+    Day 5: engine skeleton (CourseEngine + Registry)
+
+  Week 3: Handlers + API
+    Day 1-2: Basic handlers (Static, Input, Select)
+    Day 3: LLM handlers (using ClaudeService)
+    Day 4-5: session API + integration tests
+
+  Week 4: Testing & Polish
+    Day 1-3: End-to-end тесты
+    Day 4-5: Bug fixes, edge cases

@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: cbt-postgres
+    environment:
+      POSTGRES_DB: cbt_platform
+      POSTGRES_USER: cbt_user
+      POSTGRES_PASSWORD: cbt_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cbt_user -d cbt_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cbt-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

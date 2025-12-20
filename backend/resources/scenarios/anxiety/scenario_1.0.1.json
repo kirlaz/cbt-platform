@@ -1,0 +1,2308 @@
+{
+  "meta": {
+    "version": "1.0.1",
+    "name": "CBT Anxiety Course - Free Part",
+    "description": "Orchestrator scenarios for LLM-powered CBT course focused on anxiety and panic",
+    "sessions": ["onboarding", "session_1", "session_2"],
+    "default_language": "ru"
+  },
+
+  "global_config": {
+    "llm_model": "claude-sonnet-4-20250514",
+    "temperature": 0.7,
+    "max_tokens": 1024,
+    "system_prompt_base": "Ты — эмпатичный КПТ-терапевт в приложении для работы с тревогой. Твой стиль: тёплый, поддерживающий, но профессиональный. Ты используешь техники когнитивно-поведенческой терапии. Избегай медицинских диагнозов. Если видишь признаки кризиса — мягко направляй к живому специалисту. Отвечай на языке пользователя. Используй имя пользователя естественно, не в каждом сообщении.",
+    "check_in_times": ["20:00"],
+    "reminder_intervals_hours": [24, 48],
+    "crisis_keywords": ["суицид", "убить себя", "не хочу жить", "покончить", "самоубийство", "порезы", "навредить себе"]
+  },
+
+  "user_profile_schema": {
+    "id": "string",
+    "name": "string",
+    "created_at": "datetime",
+    "current_session": "string",
+    "current_block": "string",
+    "onboarding_data": {
+      "primary_issue": "string",
+      "triggers": ["string"],
+      "physical_symptoms": ["string"],
+      "thoughts": ["string"],
+      "coping_behaviors": ["string"],
+      "frequency": "string",
+      "gad7_score": "number",
+      "gad7_severity": "string",
+      "goals": ["string"]
+    },
+    "cognitive_profile": {
+      "primary_distortions": ["string"],
+      "distortion_scores": {
+        "mind_reading": "number",
+        "catastrophizing": "number",
+        "black_white": "number",
+        "fortune_telling": "number"
+      },
+      "recurring_thoughts": ["string"]
+    },
+    "progress": {
+      "sessions_completed": ["string"],
+      "techniques_learned": ["string"],
+      "technique_effectiveness": {
+        "grounding_54321": {
+          "uses": "number",
+          "avg_reduction": "number"
+        }
+      },
+      "gad7_history": [{"date": "datetime", "score": "number"}],
+      "daily_anxiety_scores": [{"date": "datetime", "score": "number"}]
+    },
+    "journal_entries": [{
+      "id": "string",
+      "timestamp": "datetime",
+      "type": "string",
+      "situation": "string",
+      "thought": "string",
+      "distortion": "string",
+      "emotion": "string",
+      "emotion_intensity": "number",
+      "anxiety_before": "number",
+      "anxiety_after": "number",
+      "technique_used": "string",
+      "notes": "string"
+    }],
+    "engagement": {
+      "last_active": "datetime",
+      "check_ins_completed": "number",
+      "assignments_completed": "number",
+      "streak_days": "number"
+    }
+  },
+
+  "sessions": {
+    "onboarding": {
+      "id": "onboarding",
+      "name": "Умный онбординг",
+      "duration_minutes": 15,
+      "next_session": "session_1",
+      "delay_before_next_hours": 24,
+
+      "blocks": [
+        {
+          "id": "welcome",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Привет! Я буду твоим проводником в работе с тревогой.\n\nЗа следующие 10-15 минут я хочу лучше узнать тебя и понять, как именно тревога проявляется в твоей жизни. Это поможет мне адаптировать программу под тебя.\n\nГотов начать?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button",
+              "id": "start_btn",
+              "text": "Да, начнём",
+              "action": "next_block"
+            }
+          ],
+          "next_block": "get_name"
+        },
+
+        {
+          "id": "get_name",
+          "type": "input",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Для начала — как тебя зовут?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "text_input",
+              "id": "name_input",
+              "placeholder": "Твоё имя",
+              "validation": {
+                "min_length": 2,
+                "max_length": 50
+              }
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.name",
+            "next_block": "get_reason"
+          }
+        },
+
+        {
+          "id": "get_reason",
+          "type": "llm_conversation",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Это первый вопрос онбординга после знакомства. Пользователь только что представился как {{user_profile.name}}.\n\nТвоя задача:\n1. Тепло поприветствовать пользователя по имени (один раз)\n2. Спросить, что привело их сюда и что они хотят изменить\n\nФормат: 2-3 коротких предложения, заканчивающихся открытым вопросом.",
+            "user_message_template": "Пользователь представился: {{input}}",
+            "response_handling": "display_and_wait_input"
+          },
+          "follow_up": {
+            "llm_config": {
+              "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} объясняет, что привело их в приложение.\n\nТвоя задача:\n1. Валидировать их опыт (короткая эмпатичная фраза)\n2. Уточнить детали проблемы (задай 1 уточняющий вопрос)\n\nКлассифицируй тип проблемы:\n- generalized_anxiety: общая тревожность, беспокойство, напряжение\n- panic: панические атаки, острые приступы страха\n- social_anxiety: страх социальных ситуаций, оценки\n- mixed: комбинация\n\nВ конце ответа добавь JSON-метаданные в формате:\n[META]{\"issue_type\": \"тип\", \"key_concerns\": [\"список ключевых проблем\"]}[/META]",
+              "extract_metadata": true,
+              "metadata_pattern": "\\[META\\](.*?)\\[/META\\]"
+            },
+            "max_turns": 3,
+            "save_extracted": {
+              "issue_type": "user_profile.onboarding_data.primary_issue",
+              "key_concerns": "user_profile.onboarding_data.triggers"
+            }
+          },
+          "next_block": "physical_symptoms"
+        },
+
+        {
+          "id": "physical_symptoms",
+          "type": "multi_select",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Тревога проявляется у всех по-разному. Давай разберёмся, как она работает именно у тебя.\n\nКогда ты тревожишься, что происходит с твоим телом? Выбери всё, что подходит:"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "checkbox_group",
+              "id": "symptoms_select",
+              "options": [
+                {"id": "heart", "label": "Учащённое сердцебиение"},
+                {"id": "sweat", "label": "Потливость"},
+                {"id": "trembling", "label": "Дрожь"},
+                {"id": "throat", "label": "Ком в горле"},
+                {"id": "chest", "label": "Тяжесть в груди"},
+                {"id": "dizzy", "label": "Головокружение"},
+                {"id": "nausea", "label": "Тошнота"},
+                {"id": "muscle", "label": "Напряжение в мышцах"},
+                {"id": "sleep", "label": "Проблемы со сном"},
+                {"id": "other", "label": "Другое", "has_input": true}
+              ],
+              "min_selections": 1
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.physical_symptoms",
+            "next_block": "validate_symptoms"
+          }
+        },
+
+        {
+          "id": "validate_symptoms",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} выбрал физические симптомы тревоги.\n\nВыбранные симптомы: {{user_profile.onboarding_data.physical_symptoms}}\n\nТвоя задача:\n1. Коротко валидировать (1 предложение о том, что эти симптомы типичны)\n2. Мягко нормализовать (тело реагирует на воспринимаемую угрозу)\n3. Перейти к вопросу о мыслях\n\nФормат: 3-4 предложения, заканчивается вопросом о мыслях во время тревоги.",
+            "temperature": 0.6
+          },
+          "next_block": "thoughts_input"
+        },
+
+        {
+          "id": "thoughts_input",
+          "type": "input",
+          "ui_components": [
+            {
+              "type": "text_area",
+              "id": "thoughts_input",
+              "placeholder": "Какие мысли обычно крутятся в голове?",
+              "min_length": 10,
+              "max_length": 500
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.thoughts",
+            "next_block": "validate_thoughts"
+          }
+        },
+
+        {
+          "id": "validate_thoughts",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} описал свои тревожные мысли.\n\nИх мысли: {{user_profile.onboarding_data.thoughts}}\n\nТвоя задача:\n1. Отразить ключевые мысли (перефразируй их мысли, показав, что услышал)\n2. Мягко указать: это мысли, а не факты (1 предложение)\n3. Сказать, что будете учиться с ними работать\n4. Перейти к вопросу о поведении\n\nФормат: 3-4 предложения, затем вопрос о том, как пользователь обычно справляется с тревогой.",
+            "temperature": 0.7
+          },
+          "next_block": "coping_behaviors"
+        },
+
+        {
+          "id": "coping_behaviors",
+          "type": "multi_select",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Что ты обычно делаешь, когда тревога накрывает? Как пытаешься с ней справиться?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "checkbox_group",
+              "id": "coping_select",
+              "options": [
+                {"id": "avoidance", "label": "Избегаю ситуаций, которые вызывают тревогу"},
+                {"id": "checking", "label": "Постоянно проверяю (телефон, почту, новости)"},
+                {"id": "reassurance", "label": "Прошу близких успокоить меня"},
+                {"id": "distraction", "label": "Пытаюсь отвлечься (соцсети, еда, алкоголь)"},
+                {"id": "overwork", "label": "Работаю ещё больше"},
+                {"id": "nothing", "label": "Ничего, просто терплю"},
+                {"id": "other", "label": "Другое", "has_input": true}
+              ],
+              "min_selections": 1
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.coping_behaviors",
+            "next_block": "triggers_input"
+          }
+        },
+
+        {
+          "id": "triggers_input",
+          "type": "llm_conversation",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Теперь давай поймём, что запускает твою тревогу.\n\nОпиши 2-3 типичные ситуации, когда тревога усиливается:"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "text_area",
+              "id": "triggers_text",
+              "placeholder": "Например: перед важными встречами, когда звонит телефон, по вечерам...",
+              "min_length": 20
+            }
+          ],
+          "on_submit": {
+            "llm_config": {
+              "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} описывает триггеры тревоги.\n\nИх описание: {{input}}\n\nТвоя задача:\n1. Выделить и пронумеровать конкретные триггеры (2-4 штуки)\n2. Подтвердить, что это ценная информация для работы\n3. Перейти к вопросу о частоте\n\nВ конце добавь метаданные:\n[META]{\"triggers\": [\"триггер 1\", \"триггер 2\", ...]}[/META]",
+              "extract_metadata": true
+            },
+            "save_extracted": {
+              "triggers": "user_profile.onboarding_data.triggers"
+            },
+            "next_block": "frequency"
+          }
+        },
+
+        {
+          "id": "frequency",
+          "type": "single_select",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Как часто ты испытываешь заметную тревогу?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "frequency_select",
+              "options": [
+                {"id": "multiple_daily", "label": "Несколько раз в день", "weight": 4},
+                {"id": "daily", "label": "Ежедневно", "weight": 3},
+                {"id": "several_weekly", "label": "Несколько раз в неделю", "weight": 2},
+                {"id": "weekly_less", "label": "Раз в неделю или реже", "weight": 1}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.frequency",
+            "next_block": "gad7_intro"
+          }
+        },
+
+        {
+          "id": "gad7_intro",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Сейчас я задам несколько стандартных вопросов, чтобы лучше понять интенсивность тревоги. За последние 2 недели как часто тебя беспокоило следующее:"
+            }
+          ],
+          "next_block": "gad7_q1"
+        },
+
+        {
+          "id": "gad7_q1",
+          "type": "single_select",
+          "messages": [{"type": "text", "content": "Чувство нервозности, тревоги или напряжения?"}],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "gad7_1",
+              "options": [
+                {"id": "0", "label": "Совсем не беспокоило", "value": 0},
+                {"id": "1", "label": "Несколько дней", "value": 1},
+                {"id": "2", "label": "Более половины дней", "value": 2},
+                {"id": "3", "label": "Почти каждый день", "value": 3}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.gad7_responses.q1",
+            "next_block": "gad7_q2"
+          }
+        },
+
+        {
+          "id": "gad7_q2",
+          "type": "single_select",
+          "messages": [{"type": "text", "content": "Невозможность остановить или контролировать беспокойство?"}],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "gad7_2",
+              "options": [
+                {"id": "0", "label": "Совсем не беспокоило", "value": 0},
+                {"id": "1", "label": "Несколько дней", "value": 1},
+                {"id": "2", "label": "Более половины дней", "value": 2},
+                {"id": "3", "label": "Почти каждый день", "value": 3}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.gad7_responses.q2",
+            "next_block": "gad7_q3"
+          }
+        },
+
+        {
+          "id": "gad7_q3",
+          "type": "single_select",
+          "messages": [{"type": "text", "content": "Чрезмерное беспокойство о разных вещах?"}],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "gad7_3",
+              "options": [
+                {"id": "0", "label": "Совсем не беспокоило", "value": 0},
+                {"id": "1", "label": "Несколько дней", "value": 1},
+                {"id": "2", "label": "Более половины дней", "value": 2},
+                {"id": "3", "label": "Почти каждый день", "value": 3}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.gad7_responses.q3",
+            "next_block": "gad7_q4"
+          }
+        },
+
+        {
+          "id": "gad7_q4",
+          "type": "single_select",
+          "messages": [{"type": "text", "content": "Трудности с расслаблением?"}],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "gad7_4",
+              "options": [
+                {"id": "0", "label": "Совсем не беспокоило", "value": 0},
+                {"id": "1", "label": "Несколько дней", "value": 1},
+                {"id": "2", "label": "Более половины дней", "value": 2},
+                {"id": "3", "label": "Почти каждый день", "value": 3}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.gad7_responses.q4",
+            "next_block": "gad7_q5"
+          }
+        },
+
+        {
+          "id": "gad7_q5",
+          "type": "single_select",
+          "messages": [{"type": "text", "content": "Такое сильное беспокойство, что трудно усидеть на месте?"}],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "gad7_5",
+              "options": [
+                {"id": "0", "label": "Совсем не беспокоило", "value": 0},
+                {"id": "1", "label": "Несколько дней", "value": 1},
+                {"id": "2", "label": "Более половины дней", "value": 2},
+                {"id": "3", "label": "Почти каждый день", "value": 3}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.gad7_responses.q5",
+            "next_block": "gad7_q6"
+          }
+        },
+
+        {
+          "id": "gad7_q6",
+          "type": "single_select",
+          "messages": [{"type": "text", "content": "Раздражительность или лёгкое возникновение досады?"}],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "gad7_6",
+              "options": [
+                {"id": "0", "label": "Совсем не беспокоило", "value": 0},
+                {"id": "1", "label": "Несколько дней", "value": 1},
+                {"id": "2", "label": "Более половины дней", "value": 2},
+                {"id": "3", "label": "Почти каждый день", "value": 3}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.gad7_responses.q6",
+            "next_block": "gad7_q7"
+          }
+        },
+
+        {
+          "id": "gad7_q7",
+          "type": "single_select",
+          "messages": [{"type": "text", "content": "Чувство, что может произойти что-то ужасное?"}],
+          "ui_components": [
+            {
+              "type": "radio_group",
+              "id": "gad7_7",
+              "options": [
+                {"id": "0", "label": "Совсем не беспокоило", "value": 0},
+                {"id": "1", "label": "Несколько дней", "value": 1},
+                {"id": "2", "label": "Более половины дней", "value": 2},
+                {"id": "3", "label": "Почти каждый день", "value": 3}
+              ]
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.onboarding_data.gad7_responses.q7",
+            "compute": {
+              "action": "calculate_gad7",
+              "source": "user_profile.onboarding_data.gad7_responses",
+              "save_score_to": "user_profile.onboarding_data.gad7_score",
+              "save_severity_to": "user_profile.onboarding_data.gad7_severity"
+            },
+            "next_block": "gad7_result"
+          }
+        },
+
+        {
+          "id": "gad7_result",
+          "type": "conditional",
+          "conditions": [
+            {
+              "if": "user_profile.onboarding_data.gad7_score <= 4",
+              "then": {
+                "message": "Спасибо за честные ответы, {{user_profile.name}}.\n\nТвой результат: {{user_profile.onboarding_data.gad7_score}} баллов из 21.\n\nЭто лёгкий уровень тревоги. Курс поможет тебе освоить техники, которые не дадут тревоге усилиться и улучшат качество жизни.",
+                "severity_tag": "mild"
+              }
+            },
+            {
+              "if": "user_profile.onboarding_data.gad7_score >= 5 && user_profile.onboarding_data.gad7_score <= 9",
+              "then": {
+                "message": "Спасибо за честные ответы, {{user_profile.name}}.\n\nТвой результат: {{user_profile.onboarding_data.gad7_score}} баллов из 21.\n\nЭто умеренный уровень тревоги. Хорошая новость: именно на этом уровне техники КПТ работают особенно эффективно.",
+                "severity_tag": "moderate"
+              }
+            },
+            {
+              "if": "user_profile.onboarding_data.gad7_score >= 10 && user_profile.onboarding_data.gad7_score <= 14",
+              "then": {
+                "message": "Спасибо за честные ответы, {{user_profile.name}}.\n\nТвой результат: {{user_profile.onboarding_data.gad7_score}} баллов из 21.\n\nЭто заметный уровень тревоги, который, вероятно, ощутимо влияет на твою жизнь. Курс даст тебе конкретные инструменты для работы с этим.",
+                "severity_tag": "moderately_severe"
+              }
+            },
+            {
+              "if": "user_profile.onboarding_data.gad7_score >= 15",
+              "then": {
+                "message": "Спасибо за честные ответы, {{user_profile.name}}.\n\nТвой результат: {{user_profile.onboarding_data.gad7_score}} баллов из 21.\n\nЭто высокий уровень тревоги. Я рекомендую параллельно с курсом рассмотреть консультацию со специалистом. Курс будет полезным дополнением к профессиональной помощи.",
+                "severity_tag": "severe",
+                "show_resources": true
+              }
+            }
+          ],
+          "next_block": "goals_input"
+        },
+
+        {
+          "id": "goals_input",
+          "type": "input",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Последний вопрос. Представь, что тревога больше не управляет твоей жизнью. Что изменится? Что ты сможешь делать?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "text_area",
+              "id": "goals_text",
+              "placeholder": "Опиши, как изменится твоя жизнь...",
+              "min_length": 10
+            }
+          ],
+          "on_submit": {
+            "llm_config": {
+              "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} описывает свои цели — жизнь без контроля тревоги.\n\nИх описание: {{input}}\n\nТвоя задача:\n1. Отразить их цели позитивно (перефразируй 2-3 ключевые цели)\n2. Подтвердить, что эти цели достижимы\n3. Сказать, что будете к ним идти вместе\n\nФормат: 2-3 предложения, вдохновляющий тон.\n\nВ конце добавь:\n[META]{\"goals\": [\"цель 1\", \"цель 2\", ...]}[/META]",
+              "extract_metadata": true
+            },
+            "save_extracted": {
+              "goals": "user_profile.onboarding_data.goals"
+            },
+            "next_block": "anxiety_map"
+          }
+        },
+
+        {
+          "id": "anxiety_map",
+          "type": "visualization",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Я собрал всё, что ты рассказал(а), в твою персональную карту тревоги. Посмотри — так работает именно твоя тревога:"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "anxiety_map_diagram",
+              "id": "personal_anxiety_map",
+              "data_sources": {
+                "triggers": "user_profile.onboarding_data.triggers",
+                "thoughts": "user_profile.onboarding_data.thoughts",
+                "physical_symptoms": "user_profile.onboarding_data.physical_symptoms",
+                "coping_behaviors": "user_profile.onboarding_data.coping_behaviors",
+                "goals": "user_profile.onboarding_data.goals"
+              }
+            }
+          ],
+          "next_block": "map_explanation"
+        },
+
+        {
+          "id": "map_explanation",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователю {{user_profile.name}} показана их персональная карта тревоги.\n\nДанные пользователя:\n- Триггеры: {{user_profile.onboarding_data.triggers}}\n- Мысли: {{user_profile.onboarding_data.thoughts}}\n- Телесные симптомы: {{user_profile.onboarding_data.physical_symptoms}}\n- Поведение: {{user_profile.onboarding_data.coping_behaviors}}\n- Цели: {{user_profile.onboarding_data.goals}}\n\nТвоя задача:\n1. Объяснить связь компонентов на их конкретном примере (как триггеры запускают мысли, мысли влияют на тело, тело на поведение, поведение поддерживает цикл)\n2. Дать надежду: этот цикл можно разорвать в нескольких точках\n3. Сказать, что именно этим займётесь в курсе\n\nФормат: 3-4 абзаца, используй конкретные примеры пользователя.",
+            "temperature": 0.7,
+            "max_tokens": 400
+          },
+          "next_block": "onboarding_complete"
+        },
+
+        {
+          "id": "onboarding_complete",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Твоя первая полноценная сессия будет доступна через несколько часов. Я пришлю напоминание.\n\nА пока — просто понаблюдай за собой. Когда заметишь тревогу, вспомни эту карту."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button",
+              "id": "save_map_btn",
+              "text": "Сохранить карту",
+              "action": "save_artifact",
+              "artifact_id": "anxiety_map"
+            },
+            {
+              "type": "button",
+              "id": "start_session_btn",
+              "text": "Перейти к первой сессии сейчас",
+              "action": "start_session",
+              "session_id": "session_1",
+              "style": "primary"
+            }
+          ],
+          "on_complete": {
+            "save": {
+              "user_profile.progress.sessions_completed": ["onboarding"],
+              "user_profile.current_session": "session_1"
+            },
+            "schedule": {
+              "type": "session_reminder",
+              "session_id": "session_1",
+              "delay_hours": 24
+            }
+          }
+        }
+      ]
+    },
+
+    "session_1": {
+      "id": "session_1",
+      "name": "Понимание тревоги + первый инструмент",
+      "duration_minutes": 25,
+      "prerequisites": ["onboarding"],
+      "next_session": "session_2",
+      "delay_before_next_hours": 72,
+
+      "blocks": [
+        {
+          "id": "session_start",
+          "type": "check_in",
+          "messages": [
+            {
+              "type": "text",
+              "content": "С возвращением, {{user_profile.name}}! Как ты сейчас?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "anxiety_slider",
+              "id": "start_anxiety",
+              "min": 1,
+              "max": 10,
+              "labels": {
+                "1": "Спокойствие",
+                "10": "Сильная тревога"
+              }
+            }
+          ],
+          "on_submit": {
+            "save_to": "session_data.start_anxiety",
+            "next_block": "start_validation"
+          }
+        },
+
+        {
+          "id": "start_validation",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Начало сессии 1. Пользователь {{user_profile.name}} отметил текущий уровень тревоги: {{session_data.start_anxiety}}/10.\n\nТвоя задача:\n1. Кратко отразить их состояние (1 предложение)\n2. Сказать, что запомнишь это число и проверишь в конце сессии\n3. Напомнить о карте тревоги и анонсировать сегодняшнюю тему\n\nФормат: 3 коротких предложения.",
+            "temperature": 0.6
+          },
+          "next_block": "psychoeducation_intro"
+        },
+
+        {
+          "id": "psychoeducation_intro",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Давай разберёмся, что вообще такое тревога и почему она возникает."
+            },
+            {
+              "type": "text",
+              "content": "Тревога — это древний защитный механизм. Когда наш предок встречал тигра, его тело мгновенно готовилось к действию: сердце билось быстрее, мышцы напрягались, дыхание учащалось."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "animation",
+              "id": "fight_flight_animation",
+              "asset": "fight_flight_response"
+            }
+          ],
+          "next_block": "psychoeducation_personal"
+        },
+
+        {
+          "id": "psychoeducation_personal",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Психообразование о тревоге. Пользователь {{user_profile.name}}.\n\nИх данные:\n- Триггеры: {{user_profile.onboarding_data.triggers}}\n- Телесные симптомы: {{user_profile.onboarding_data.physical_symptoms}}\n\nТвоя задача:\n1. Объяснить, что мозг реагирует на их конкретные триггеры (например, совещание) как на физическую угрозу\n2. Связать их телесные симптомы с реакцией fight-or-flight\n3. Нормализовать: это не слабость, а биология\n\nИспользуй конкретные примеры из их данных. Формат: 2 абзаца.",
+            "temperature": 0.7
+          },
+          "next_block": "understanding_check"
+        },
+
+        {
+          "id": "understanding_check",
+          "type": "input",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Как тебе это объяснение? Есть вопросы?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "understanding_response",
+              "options": [
+                {"id": "clear", "text": "Понятно, продолжай"},
+                {"id": "question", "text": "У меня есть вопрос"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "conditions": [
+              {
+                "if": "input.id == 'clear'",
+                "next_block": "cycle_explanation"
+              },
+              {
+                "if": "input.id == 'question'",
+                "next_block": "handle_question"
+              }
+            ]
+          }
+        },
+
+        {
+          "id": "handle_question",
+          "type": "llm_conversation",
+          "ui_components": [
+            {
+              "type": "text_input",
+              "id": "question_input",
+              "placeholder": "Твой вопрос..."
+            }
+          ],
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Сессия 1, блок психообразования. Пользователь {{user_profile.name}} задаёт вопрос о тревоге.\n\nТолько что объяснили:\n- Тревога — древний защитный механизм (fight-or-flight)\n- Мозг реагирует на современные триггеры как на физические угрозы\n- Их симптомы: {{user_profile.onboarding_data.physical_symptoms}}\n\nТвоя задача:\n1. Ответить на вопрос пользователя просто и понятно\n2. Связать ответ с их личным опытом, если возможно\n3. Спросить, можно ли продолжить\n\nТипичные вопросы:\n- «Почему у меня это так сильно?» → Генетика, опыт, текущий стресс. Важно: навыки можно натренировать.\n- «Это лечится?» → КПТ — один из самых эффективных подходов. Навыки остаются на всю жизнь.\n- «Почему другие не понимают?» → Тревога невидима. Валидировать. Можно научиться объяснять.\n\nФормат: 2-3 абзаца максимум.",
+            "max_turns": 2
+          },
+          "next_block": "cycle_explanation"
+        },
+
+        {
+          "id": "cycle_explanation",
+          "type": "visualization",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Теперь давай посмотрим, как это работает на твоём примере."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "anxiety_cycle_diagram",
+              "id": "personal_cycle",
+              "data_sources": {
+                "situation": "{{user_profile.onboarding_data.triggers[0]}}",
+                "thought": "{{user_profile.onboarding_data.thoughts}}",
+                "body": "{{user_profile.onboarding_data.physical_symptoms}}",
+                "behavior": "{{user_profile.onboarding_data.coping_behaviors}}"
+              },
+              "interactive": true,
+              "build_step_by_step": true
+            }
+          ],
+          "next_block": "cycle_validation"
+        },
+
+        {
+          "id": "cycle_validation",
+          "type": "single_select",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Похоже на твой опыт?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "cycle_recognition",
+              "options": [
+                {"id": "yes", "text": "Да, очень похоже"},
+                {"id": "partial", "text": "Частично"},
+                {"id": "no", "text": "Не совсем"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "conditions": [
+              {
+                "if": "input.id == 'yes'",
+                "next_block": "cycle_insight"
+              },
+              {
+                "if": "input.id == 'partial' || input.id == 'no'",
+                "next_block": "cycle_clarification"
+              }
+            ]
+          }
+        },
+
+        {
+          "id": "cycle_clarification",
+          "type": "llm_conversation",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Расскажи, что отличается в твоём опыте? Это поможет мне лучше понять."
+            }
+          ],
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} говорит, что цикл тревоги не полностью соответствует их опыту.\n\nТвоя задача:\n1. Попросить уточнить, что отличается\n2. Валидировать их уникальный опыт\n3. Адаптировать понимание и подтвердить, что вы на одной волне\n\nФормат: диалог, 1-2 обмена репликами.",
+            "max_turns": 2
+          },
+          "on_complete": {
+            "update": {
+              "llm_task": "extract_corrected_understanding",
+              "save_to": "user_profile.onboarding_data"
+            }
+          },
+          "next_block": "cycle_insight"
+        },
+
+        {
+          "id": "cycle_insight",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} узнал себя в цикле тревоги.\n\nТвоя задача:\n1. Подчеркнуть ключевой инсайт: одно усиливает другое в цикле\n2. Дать надежду: это не слабость, это механизм, который можно перенастроить\n3. Анонсировать первый инструмент для разрыва цикла\n\nФормат: 2 коротких абзаца.",
+            "temperature": 0.6
+          },
+          "next_block": "technique_intro"
+        },
+
+        {
+          "id": "technique_intro",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Сейчас я научу тебя технике, которая помогает разорвать этот цикл в моменте. Она называется «Заземление 5-4-3-2-1»."
+            },
+            {
+              "type": "text",
+              "content": "Суть простая: когда тревога захватывает, мы переключаем внимание с внутренних переживаний на внешний мир через органы чувств."
+            },
+            {
+              "type": "text",
+              "content": "Хочешь попробовать прямо сейчас?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button",
+              "id": "start_technique_btn",
+              "text": "Да, давай попробуем",
+              "style": "primary"
+            }
+          ],
+          "next_block": "technique_preparation"
+        },
+
+        {
+          "id": "technique_preparation",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Отлично. Найди удобное положение. Можешь сидеть или стоять — как комфортнее."
+            },
+            {
+              "type": "text",
+              "content": "Сделай один глубокий вдох... и выдох."
+            },
+            {
+              "type": "text",
+              "content": "Готов(а)?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "breathing_animation",
+              "id": "prep_breath",
+              "cycles": 1,
+              "inhale_seconds": 4,
+              "exhale_seconds": 6
+            },
+            {
+              "type": "button",
+              "id": "ready_btn",
+              "text": "Готов(а)",
+              "style": "primary"
+            }
+          ],
+          "next_block": "technique_step_1"
+        },
+
+        {
+          "id": "technique_step_1",
+          "type": "guided_exercise",
+          "messages": [
+            {
+              "type": "text",
+              "content": "**5 вещей, которые ты ВИДИШЬ**"
+            },
+            {
+              "type": "text",
+              "content": "Осмотрись вокруг. Назови (вслух или про себя) 5 предметов, которые ты видишь прямо сейчас.\n\nНе торопись. Замечай детали — цвет, форму, текстуру."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "timer",
+              "id": "step1_timer",
+              "duration_seconds": 30,
+              "style": "subtle"
+            },
+            {
+              "type": "text_input",
+              "id": "see_input",
+              "placeholder": "Что ты видишь? (необязательно)",
+              "optional": true
+            }
+          ],
+          "on_timer_complete": {
+            "next_block": "technique_step_2"
+          }
+        },
+
+        {
+          "id": "technique_step_2",
+          "type": "guided_exercise",
+          "llm_response_if_input": {
+            "system_prompt": "Пользователь перечислил, что видит: {{input}}. Кратко (1 предложение) подтверди и переходи к следующему шагу: 4 вещи, которые чувствуешь прикосновением.",
+            "temperature": 0.5
+          },
+          "messages": [
+            {
+              "type": "text",
+              "content": "**4 вещи, которые ты ОЩУЩАЕШЬ (прикосновение)**"
+            },
+            {
+              "type": "text",
+              "content": "Обрати внимание на тактильные ощущения. Что ты чувствуешь? Может быть, ткань одежды, поверхность стула, температуру воздуха?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "timer",
+              "id": "step2_timer",
+              "duration_seconds": 25,
+              "style": "subtle"
+            }
+          ],
+          "on_timer_complete": {
+            "next_block": "technique_step_3"
+          }
+        },
+
+        {
+          "id": "technique_step_3",
+          "type": "guided_exercise",
+          "messages": [
+            {
+              "type": "text",
+              "content": "**3 вещи, которые ты СЛЫШИШЬ**"
+            },
+            {
+              "type": "text",
+              "content": "Прислушайся. Какие звуки есть вокруг тебя? Даже тихие, фоновые."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "timer",
+              "id": "step3_timer",
+              "duration_seconds": 20,
+              "style": "subtle"
+            }
+          ],
+          "on_timer_complete": {
+            "next_block": "technique_step_4"
+          }
+        },
+
+        {
+          "id": "technique_step_4",
+          "type": "guided_exercise",
+          "messages": [
+            {
+              "type": "text",
+              "content": "**2 вещи, которые ты ЧУВСТВУЕШЬ ЗАПАХ**"
+            },
+            {
+              "type": "text",
+              "content": "Это может быть сложнее. Если не чувствуешь запахов — просто отметь это."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "timer",
+              "id": "step4_timer",
+              "duration_seconds": 15,
+              "style": "subtle"
+            }
+          ],
+          "on_timer_complete": {
+            "next_block": "technique_step_5"
+          }
+        },
+
+        {
+          "id": "technique_step_5",
+          "type": "guided_exercise",
+          "messages": [
+            {
+              "type": "text",
+              "content": "**1 вещь, которую ты можешь ПОПРОБОВАТЬ НА ВКУС**"
+            },
+            {
+              "type": "text",
+              "content": "Какой вкус сейчас во рту? Или вспомни вкус последнего, что ты ел(а)."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "timer",
+              "id": "step5_timer",
+              "duration_seconds": 10,
+              "style": "subtle"
+            }
+          ],
+          "on_timer_complete": {
+            "next_block": "technique_result"
+          }
+        },
+
+        {
+          "id": "technique_result",
+          "type": "check_in",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Отлично, ты прошёл(шла) через всё упражнение."
+            },
+            {
+              "type": "text",
+              "content": "Теперь проверим: как твоя тревога сейчас по шкале от 1 до 10?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "anxiety_slider",
+              "id": "post_technique_anxiety",
+              "min": 1,
+              "max": 10
+            }
+          ],
+          "on_submit": {
+            "save_to": "session_data.post_technique_anxiety",
+            "compute": {
+              "action": "calculate_technique_effect",
+              "before": "session_data.start_anxiety",
+              "after": "session_data.post_technique_anxiety",
+              "save_to": "session_data.technique_effect"
+            },
+            "next_block": "technique_effect_display"
+          }
+        },
+
+        {
+          "id": "technique_effect_display",
+          "type": "visualization",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Было {{session_data.start_anxiety}}, стало {{session_data.post_technique_anxiety}}."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "before_after_chart",
+              "id": "technique_effect_chart",
+              "before_value": "{{session_data.start_anxiety}}",
+              "after_value": "{{session_data.post_technique_anxiety}}",
+              "show_percentage": true
+            }
+          ],
+          "conditional_message": {
+            "if": "session_data.technique_effect.reduction_percent > 0",
+            "then": {
+              "type": "text",
+              "content": "**Твоя тревога снизилась на {{session_data.technique_effect.reduction_percent}}% за 3 минуты.**"
+            },
+            "else": {
+              "type": "text",
+              "content": "Тревога осталась на том же уровне или слегка выросла. Это бывает, особенно при первых практиках."
+            }
+          },
+          "next_block": "technique_explanation"
+        },
+
+        {
+          "id": "technique_explanation",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} только что завершил технику 5-4-3-2-1.\n\nРезультат:\n- Тревога до: {{session_data.start_anxiety}}\n- Тревога после: {{session_data.post_technique_anxiety}}\n- Изменение: {{session_data.technique_effect.reduction_percent}}%\n\nТвоя задача:\n1. Если снижение есть (>0%): объяснить, почему техника работает (переключение внимания даёт мозгу сигнал безопасности)\n2. Если снижения нет: нормализовать, объяснить, что навык требует практики, первый раз может быть сложно\n3. Подчеркнуть: пользователь только что доказал себе, что может влиять на своё состояние (если есть снижение) / что это навык, который тренируется (если нет)\n\nФормат: 2 коротких абзаца.",
+            "temperature": 0.6
+          },
+          "next_block": "technique_when_to_use"
+        },
+
+        {
+          "id": "technique_when_to_use",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Объясняем пользователю {{user_profile.name}}, когда применять технику 5-4-3-2-1.\n\nИх триггеры: {{user_profile.onboarding_data.triggers}}\n\nТвоя задача:\n1. Привести 2 конкретных примера из их триггеров, когда техника будет полезна\n2. Упомянуть быструю версию (3-2-1) для ситуаций, когда нет времени\n3. Если среди триггеров есть «вечер/сон» — дать совет для засыпания\n\nФормат: 2-3 абзаца с конкретными примерами.",
+            "temperature": 0.7
+          },
+          "next_block": "questions_check"
+        },
+
+        {
+          "id": "questions_check",
+          "type": "input",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Есть вопросы по технике?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "questions_response",
+              "options": [
+                {"id": "no", "text": "Нет, всё понятно"},
+                {"id": "yes", "text": "Да, есть вопрос"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "conditions": [
+              {
+                "if": "input.id == 'no'",
+                "next_block": "homework_intro"
+              },
+              {
+                "if": "input.id == 'yes'",
+                "next_block": "handle_technique_question"
+              }
+            ]
+          }
+        },
+
+        {
+          "id": "handle_technique_question",
+          "type": "llm_conversation",
+          "ui_components": [
+            {
+              "type": "text_input",
+              "id": "technique_question",
+              "placeholder": "Твой вопрос..."
+            }
+          ],
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} задаёт вопрос о технике заземления 5-4-3-2-1.\n\nЧастые вопросы и ответы:\n- «Что делать, если не могу сосредоточиться?» → Нормально. Мягко возвращай внимание. Каждое возвращение — тренировка. Начинай до пика тревоги.\n- «Можно ли делать это в уме?» → Да, можно. Но проговаривание вслух или запись усиливает эффект.\n- «Сколько раз в день делать?» → Нет лимита. Хоть 10 раз. Можно делать и без тревоги, для профилактики.\n- «Что если люди вокруг?» → Быстрая версия 3-2-1 в уме. Или выйти в туалет на минуту.\n\nОтвечай конкретно и кратко. Спроси, можно ли продолжить.",
+            "max_turns": 2
+          },
+          "next_block": "homework_intro"
+        },
+
+        {
+          "id": "homework_intro",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Теперь домашнее задание до следующей сессии."
+            }
+          ],
+          "next_block": "homework_details"
+        },
+
+        {
+          "id": "homework_details",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "**Задание 1: Практикуй технику**\nПримени 5-4-3-2-1 минимум 3 раза до следующей сессии:\n• Когда заметишь тревогу\n• Или просто для практики (например, перед сном)"
+            },
+            {
+              "type": "text",
+              "content": "**Задание 2: Веди мини-дневник**\nПосле каждого применения запиши:\n• Ситуация (что произошло)\n• Тревога до (1-10)\n• Тревога после (1-10)"
+            },
+            {
+              "type": "text",
+              "content": "Я буду напоминать тебе о check-in каждый вечер."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button",
+              "id": "accept_homework",
+              "text": "Понятно, принимаю задание",
+              "style": "primary"
+            }
+          ],
+          "next_block": "session_summary"
+        },
+
+        {
+          "id": "session_summary",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Отлично! Следующая сессия будет через 2-3 дня — я дам тебе время попрактиковаться.\n\n**Краткое резюме сегодня:**\n\n✓ Тревога — это защитный механизм, который можно перенастроить\n✓ У тебя есть первый инструмент: техника 5-4-3-2-1\n✓ Ты уже проверил(а), что она работает\n\nУвидимся!"
+            }
+          ],
+          "on_complete": {
+            "save": {
+              "user_profile.progress.sessions_completed": ["onboarding", "session_1"],
+              "user_profile.progress.techniques_learned": ["grounding_54321"],
+              "user_profile.current_session": "session_2"
+            },
+            "log_journal_entry": {
+              "type": "technique_practice",
+              "technique_used": "grounding_54321",
+              "anxiety_before": "{{session_data.start_anxiety}}",
+              "anxiety_after": "{{session_data.post_technique_anxiety}}",
+              "context": "session_1_first_practice"
+            },
+            "schedule": [
+              {
+                "type": "daily_check_in",
+                "time": "20:00",
+                "repeat_until": "session_2_start"
+              },
+              {
+                "type": "session_reminder",
+                "session_id": "session_2",
+                "delay_hours": 72
+              }
+            ]
+          }
+        }
+      ]
+    },
+
+    "session_2": {
+      "id": "session_2",
+      "name": "Ловим автоматические мысли",
+      "duration_minutes": 25,
+      "prerequisites": ["session_1"],
+      "next_session": "session_3",
+      "is_paywall_session": true,
+
+      "blocks": [
+        {
+          "id": "session_start",
+          "type": "check_in",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Привет, {{user_profile.name}}! Рада тебя видеть.\n\nС прошлой сессии прошло несколько дней. Давай посмотрим, как ты справился(лась) с заданием."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "anxiety_slider",
+              "id": "start_anxiety",
+              "min": 1,
+              "max": 10
+            }
+          ],
+          "on_submit": {
+            "save_to": "session_data.start_anxiety",
+            "next_block": "homework_review"
+          }
+        },
+
+        {
+          "id": "homework_review",
+          "type": "data_visualization",
+          "data_query": {
+            "source": "user_profile.journal_entries",
+            "filter": {
+              "type": "technique_practice",
+              "technique_used": "grounding_54321",
+              "timestamp_after": "session_1_completion"
+            }
+          },
+          "messages": [
+            {
+              "type": "text",
+              "content": "Я вижу, что ты применил(а) технику {{query_result.count}} раз(а) за это время. Вот что получилось:"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "practice_summary_table",
+              "id": "practice_table",
+              "columns": ["situation", "anxiety_before", "anxiety_after", "effect"],
+              "data": "{{query_result.entries}}"
+            },
+            {
+              "type": "stat_card",
+              "id": "avg_effect",
+              "title": "Средний эффект",
+              "value": "{{query_result.avg_reduction_percent}}%",
+              "subtitle": "снижение тревоги"
+            }
+          ],
+          "conditional_next": {
+            "if": "query_result.count >= 2",
+            "then": "homework_analysis",
+            "else": "homework_missing"
+          }
+        },
+
+        {
+          "id": "homework_missing",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} выполнил менее 2 практик техники с прошлой сессии.\n\nКоличество практик: {{query_result.count}}\n\nТвоя задача:\n1. Не критиковать и не создавать чувство вины\n2. Мягко спросить, что помешало\n3. Нормализовать (формирование привычки требует времени)\n4. Предложить продолжить с тем, что есть\n\nФормат: 2-3 предложения, тёплый тон.",
+            "temperature": 0.6
+          },
+          "follow_up": {
+            "llm_config": {
+              "system_prompt": "Выслушай ответ пользователя о причинах. Валидируй. Предложи одну конкретную стратегию для преодоления барьера. Затем перейди к новому материалу."
+            },
+            "max_turns": 1
+          },
+          "next_block": "homework_analysis"
+        },
+
+        {
+          "id": "homework_analysis",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Анализ практики техники пользователя {{user_profile.name}}.\n\nДанные практики:\n{{query_result.entries}}\n\nСредний эффект: {{query_result.avg_reduction_percent}}%\n\nТвоя задача:\n1. Похвалить за практику (конкретно)\n2. Выделить паттерн, если есть (например: «техника особенно хорошо работает в ситуациях X»)\n3. Подтвердить: это надёжный инструмент для острых моментов\n4. Спросить, заметил(а) ли пользователь что-то интересное за эти дни\n\nФормат: 2 абзаца.",
+            "temperature": 0.7
+          },
+          "follow_up": {
+            "type": "input",
+            "llm_config": {
+              "system_prompt": "Пользователь делится наблюдениями. Валидируй инсайт, если он есть. Если пользователь заметил связь с мыслями — идеальный переход к теме сессии. Если нет — сам сделай мост к теме автоматических мыслей.\n\n[META]{\"user_insight\": \"краткое описание инсайта или null\"}[/META]",
+              "extract_metadata": true
+            },
+            "save_extracted": {
+              "user_insight": "session_data.user_insight"
+            }
+          },
+          "next_block": "automatic_thoughts_intro"
+        },
+
+        {
+          "id": "automatic_thoughts_intro",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Давай поговорим об автоматических мыслях."
+            },
+            {
+              "type": "text",
+              "content": "Автоматические мысли — это мысли, которые появляются в голове мгновенно, без нашего контроля. Они как фоновое радио, которое мы не всегда осознаём."
+            },
+            {
+              "type": "text",
+              "content": "Например, начальник нахмурился → автоматическая мысль: «Он мной недоволен, наверное, я сделала что-то не так»."
+            },
+            {
+              "type": "text",
+              "content": "Проблема в том, что мы часто принимаем эти мысли за факты. Но **мысль ≠ факт**."
+            }
+          ],
+          "next_block": "personal_thoughts_example"
+        },
+
+        {
+          "id": "personal_thoughts_example",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Объяснение автоматических мыслей на примере пользователя {{user_profile.name}}.\n\nИх мысли из онбординга: {{user_profile.onboarding_data.thoughts}}\n\nТвоя задача:\n1. Использовать их конкретные мысли как пример автоматических мыслей\n2. Подчеркнуть: эти мысли появляются быстро и кажутся убедительными\n3. Указать: но это именно мысли, а не реальность\n\nФормат: 1 абзац.",
+            "temperature": 0.6
+          },
+          "next_block": "thought_catching_practice"
+        },
+
+        {
+          "id": "thought_catching_practice",
+          "type": "llm_conversation",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Сейчас потренируемся ловить автоматические мысли.\n\nВспомни одну из ситуаций на этой неделе, когда ты тревожился(лась). Можешь взять из дневника или другую."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "text_input",
+              "id": "situation_input",
+              "placeholder": "Опиши ситуацию..."
+            }
+          ],
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Практика ловли автоматических мыслей с пользователем {{user_profile.name}}.\n\nПользователь описал ситуацию: {{input}}\n\nТвоя задача — провести сократовский диалог:\n1. Попросить закрыть глаза и представить момент\n2. Спросить: «Какая мысль первой появилась в голове?»\n3. После ответа: «Если бы это было правдой — что бы это значило для тебя?»\n4. Ещё раз: «И если бы это случилось — что тогда?»\n5. Отразить цепочку мыслей и глубинный страх\n\nВеди диалог пошагово. Не задавай все вопросы сразу.\n\n[META]{\"surface_thought\": \"поверхностная мысль\", \"deeper_thought\": \"глубокая мысль\", \"core_fear\": \"глубинный страх\"}[/META]",
+            "extract_metadata": true,
+            "max_turns": 5
+          },
+          "save_extracted": {
+            "surface_thought": "session_data.caught_thought.surface",
+            "deeper_thought": "session_data.caught_thought.deeper",
+            "core_fear": "session_data.caught_thought.core_fear"
+          },
+          "next_block": "thought_chain_reflection"
+        },
+
+        {
+          "id": "thought_chain_reflection",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} выявил цепочку мыслей.\n\nПоверхностная мысль: {{session_data.caught_thought.surface}}\nГлубокая мысль: {{session_data.caught_thought.deeper}}\nГлубинный страх: {{session_data.caught_thought.core_fear}}\n\nТвоя задача:\n1. Показать всю цепочку визуально (в тексте)\n2. Отразить, как мозг за секунды проделывает путь от ситуации до катастрофы\n3. Выразить понимание, почему тело включает тревогу\n\nФормат: показать цепочку стрелками, затем 2 предложения рефлексии.",
+            "temperature": 0.6
+          },
+          "next_block": "distortions_intro"
+        },
+
+        {
+          "id": "distortions_intro",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Теперь важная часть. Автоматические мысли часто содержат ошибки мышления — **когнитивные искажения**."
+            },
+            {
+              "type": "text",
+              "content": "Это не значит, что ты глупый(ая) или «думаешь неправильно». Искажения есть у всех — это просто быстрые сокращения, которые использует мозг. Но они могут усиливать тревогу."
+            },
+            {
+              "type": "text",
+              "content": "Вот четыре самых частых:"
+            }
+          ],
+          "next_block": "distortions_cards"
+        },
+
+        {
+          "id": "distortions_cards",
+          "type": "educational",
+          "ui_components": [
+            {
+              "type": "card_carousel",
+              "id": "distortions_carousel",
+              "cards": [
+                {
+                  "id": "catastrophizing",
+                  "title": "Катастрофизация",
+                  "description": "Представление худшего сценария как наиболее вероятного.",
+                  "example": "«Если я ошибусь на презентации — меня уволят»",
+                  "icon": "explosion"
+                },
+                {
+                  "id": "mind_reading",
+                  "title": "Чтение мыслей",
+                  "description": "Уверенность, что знаешь, что думают другие (обычно негативное).",
+                  "example": "«Все видят, что я нервничаю и считают меня слабой»",
+                  "icon": "brain"
+                },
+                {
+                  "id": "black_white",
+                  "title": "Чёрно-белое мышление",
+                  "description": "Всё или ничего, без оттенков.",
+                  "example": "«Если не идеально — значит провал»",
+                  "icon": "contrast"
+                },
+                {
+                  "id": "fortune_telling",
+                  "title": "Предсказание будущего",
+                  "description": "Уверенность в негативном исходе без достаточных оснований.",
+                  "example": "«Я точно завалю этот проект»",
+                  "icon": "crystal_ball"
+                }
+              ]
+            }
+          ],
+          "next_block": "distortion_identification"
+        },
+
+        {
+          "id": "distortion_identification",
+          "type": "interactive_quiz",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Давай посмотрим на твои мысли.\n\n«{{session_data.caught_thought.surface}}» — какое искажение здесь?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "distortion_select_1",
+              "options": [
+                {"id": "catastrophizing", "text": "Катастрофизация"},
+                {"id": "mind_reading", "text": "Чтение мыслей"},
+                {"id": "black_white", "text": "Чёрно-белое мышление"},
+                {"id": "fortune_telling", "text": "Предсказание будущего"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "llm_config": {
+              "system_prompt": "Пользователь определил искажение в своей мысли «{{session_data.caught_thought.surface}}» как {{input.id}}.\n\nОцени правильность и дай короткую обратную связь:\n- Если верно: подтверди и кратко объясни почему\n- Если неверно или частично: мягко скорректируй, объясни какое искажение более точно и почему\n\nЗатем спроси про вторую мысль ({{session_data.caught_thought.core_fear}}).\n\n1-2 предложения максимум.",
+              "temperature": 0.5
+            },
+            "save_to": "session_data.identified_distortions.thought_1"
+          },
+          "next_block": "distortion_identification_2"
+        },
+
+        {
+          "id": "distortion_identification_2",
+          "type": "interactive_quiz",
+          "messages": [
+            {
+              "type": "text",
+              "content": "А «{{session_data.caught_thought.core_fear}}»?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "distortion_select_2",
+              "options": [
+                {"id": "catastrophizing", "text": "Катастрофизация"},
+                {"id": "mind_reading", "text": "Чтение мыслей"},
+                {"id": "black_white", "text": "Чёрно-белое мышление"},
+                {"id": "fortune_telling", "text": "Предсказание будущего"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "llm_config": {
+              "system_prompt": "Пользователь определил искажение в мысли «{{session_data.caught_thought.core_fear}}» как {{input.id}}.\n\nДай короткую обратную связь (верно/неверно + почему). 1-2 предложения.",
+              "temperature": 0.5
+            },
+            "save_to": "session_data.identified_distortions.thought_2"
+          },
+          "next_block": "pattern_analysis"
+        },
+
+        {
+          "id": "pattern_analysis",
+          "type": "llm_analysis",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Сейчас я проанализирую всё, что ты рассказывал(а) — в онбординге, в дневнике, сегодня — и покажу твои паттерны."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "loading_animation",
+              "id": "analysis_loader",
+              "text": "Анализирую...",
+              "duration_seconds": 3
+            }
+          ],
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nЗадача: Проанализировать когнитивный профиль пользователя {{user_profile.name}}.\n\nДанные для анализа:\n- Мысли из онбординга: {{user_profile.onboarding_data.thoughts}}\n- Пойманные мысли в сессии: {{session_data.caught_thought}}\n- Дневниковые записи: {{user_profile.journal_entries}}\n- Триггеры: {{user_profile.onboarding_data.triggers}}\n\nОпредели процент каждого искажения (mind_reading, catastrophizing, black_white, fortune_telling) на основе данных.\nВыдели топ-3 искажения с примерами из слов пользователя.\nОпредели главный фокус для работы.\n\nОтвет в формате:\n[META]{\n  \"distortion_scores\": {\n    \"mind_reading\": число 0-100,\n    \"catastrophizing\": число 0-100,\n    \"black_white\": число 0-100,\n    \"fortune_telling\": число 0-100\n  },\n  \"top_distortions\": [\n    {\"type\": \"тип\", \"percentage\": число, \"examples\": [\"пример 1\", \"пример 2\"]}\n  ],\n  \"primary_focus\": \"основное искажение\",\n  \"focus_explanation\": \"почему это главный фокус\"\n}[/META]",
+            "extract_metadata": true
+          },
+          "save_extracted_to": "user_profile.cognitive_profile",
+          "next_block": "cognitive_profile_display"
+        },
+
+        {
+          "id": "cognitive_profile_display",
+          "type": "visualization",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Готово. Вот твой персональный профиль когнитивных искажений:"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "cognitive_profile_card",
+              "id": "profile_visualization",
+              "data_source": "user_profile.cognitive_profile",
+              "show_bars": true,
+              "show_examples": true,
+              "show_focus": true
+            }
+          ],
+          "next_block": "profile_explanation"
+        },
+
+        {
+          "id": "profile_explanation",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Показан когнитивный профиль пользователя {{user_profile.name}}.\n\nПрофиль: {{user_profile.cognitive_profile}}\n\nТвоя задача:\n1. Прокомментировать главное искажение (1-2 предложения о том, как оно проявляется)\n2. Связать с их триггерами и жизненными ситуациями\n3. Подчеркнуть: это не диагноз, а карта для работы\n4. Дать надежду: в следующих сессиях научимся менять эти мысли\n\nФормат: 2 абзаца, персонализированный тон.",
+            "temperature": 0.7
+          },
+          "next_block": "homework_2_intro"
+        },
+
+        {
+          "id": "homework_2_intro",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "На эту неделю задание чуть сложнее, но ты справишься."
+            },
+            {
+              "type": "text",
+              "content": "**Расширенный дневник мыслей:**\n\nКогда замечаешь тревогу, запиши:\n1. **Ситуация** — что произошло\n2. **Мысль** — что пронеслось в голове\n3. **Искажение** — какое из четырёх\n4. **Эмоция** и её сила (1-10)\n\nМинимум 1 запись в день."
+            },
+            {
+              "type": "text",
+              "content": "**Совет:** Не жди сильной тревоги. Подойдёт любой момент дискомфорта — лёгкое беспокойство тоже считается."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button",
+              "id": "accept_homework_2",
+              "text": "Понятно, начинаю",
+              "style": "primary"
+            }
+          ],
+          "next_block": "paywall"
+        },
+
+        {
+          "id": "paywall",
+          "type": "paywall",
+          "messages": [
+            {
+              "type": "text",
+              "content": "{{user_profile.name}}, за две сессии ты прошёл(шла) большой путь:"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "progress_summary",
+              "id": "progress_card",
+              "items": [
+                {"icon": "check", "text": "Составил(а) карту своей тревоги"},
+                {"icon": "check", "text": "Понял(а), как работает механизм страха"},
+                {"icon": "check", "text": "Освоил(а) технику заземления (средний эффект: {{user_profile.progress.technique_effectiveness.grounding_54321.avg_reduction}}%)"},
+                {"icon": "check", "text": "Научился(лась) ловить автоматические мысли"},
+                {"icon": "check", "text": "Узнал(а) свои топ когнитивных искажения"}
+              ]
+            },
+            {
+              "type": "text",
+              "content": "Это фундамент. Но мы только начали."
+            },
+            {
+              "type": "upcoming_sessions",
+              "id": "upcoming_preview",
+              "sessions": [
+                {"number": 3, "title": "Оспаривание мыслей", "description": "Научимся менять автоматические мысли"},
+                {"number": 4, "title": "Работа с телом", "description": "Дыхание, релаксация, телесные техники"},
+                {"number": 5, "title": "Работа с паникой", "description": "Специфические техники для панических атак"},
+                {"number": "6-7", "title": "Поведенческие эксперименты", "description": "Проверка убеждений на практике"},
+                {"number": 8, "title": "План профилактики", "description": "Твой персональный план управления тревогой"}
+              ]
+            },
+            {
+              "type": "social_proof",
+              "id": "social_proof_stat",
+              "text": "87% пользователей, прошедших полный курс, отмечают значительное снижение тревоги"
+            },
+            {
+              "type": "button",
+              "id": "subscribe_btn",
+              "text": "Продолжить курс",
+              "style": "primary",
+              "action": "show_subscription"
+            },
+            {
+              "type": "link",
+              "id": "remind_later",
+              "text": "Напомнить позже",
+              "action": "schedule_reminder"
+            }
+          ],
+          "on_subscribe": {
+            "unlock_sessions": ["session_3", "session_4", "session_5", "session_6", "session_7", "session_8"],
+            "next_block": "subscription_success"
+          },
+          "on_remind_later": {
+            "schedule": {
+              "type": "paywall_reminder",
+              "delay_hours": 24
+            }
+          }
+        },
+
+        {
+          "id": "subscription_success",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Отлично! Теперь у тебя есть доступ ко всему курсу. Следующая сессия будет доступна через 2-3 дня — дам время на практику дневника мыслей.\n\nУвидимся!"
+            }
+          ],
+          "on_complete": {
+            "save": {
+              "user_profile.progress.sessions_completed": ["onboarding", "session_1", "session_2"],
+              "user_profile.subscription.status": "active",
+              "user_profile.current_session": "session_3"
+            },
+            "schedule": {
+              "type": "session_reminder",
+              "session_id": "session_3",
+              "delay_hours": 72
+            }
+          }
+        }
+      ]
+    }
+  },
+
+  "inter_session_flows": {
+    "daily_check_in": {
+      "id": "daily_check_in",
+      "trigger": {
+        "type": "scheduled",
+        "time": "20:00",
+        "timezone": "user_local"
+      },
+      "notification": {
+        "title": "Время для вечернего check-in",
+        "body": "{{user_profile.name}}, как прошёл день?"
+      },
+
+      "blocks": [
+        {
+          "id": "mood_check",
+          "type": "check_in",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Привет! Как ты сегодня по шкале от 1 до 10?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "anxiety_slider",
+              "id": "daily_anxiety",
+              "min": 1,
+              "max": 10
+            }
+          ],
+          "on_submit": {
+            "save_to": "user_profile.progress.daily_anxiety_scores",
+            "append": {
+              "date": "{{current_datetime}}",
+              "score": "{{input}}"
+            },
+            "conditional_next": [
+              {
+                "if": "input >= 8",
+                "then": "high_anxiety_response"
+              },
+              {
+                "else": "practice_check"
+              }
+            ]
+          }
+        },
+
+        {
+          "id": "high_anxiety_response",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Вечерний check-in. Пользователь {{user_profile.name}} отметил высокую тревогу: {{input}}/10.\n\nТвоя задача:\n1. Выразить заботу (1 предложение)\n2. Предложить пройти технику заземления прямо сейчас\n3. Или просто поговорить\n\nФормат: 2 предложения + предложение помощи.",
+            "temperature": 0.6
+          },
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "high_anxiety_options",
+              "options": [
+                {"id": "grounding", "text": "Да, давай технику"},
+                {"id": "talk", "text": "Хочу поговорить"},
+                {"id": "just_log", "text": "Просто запиши"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "conditions": [
+              {"if": "input.id == 'grounding'", "then": "quick_grounding"},
+              {"if": "input.id == 'talk'", "then": "supportive_conversation"},
+              {"if": "input.id == 'just_log'", "then": "check_in_complete"}
+            ]
+          }
+        },
+
+        {
+          "id": "quick_grounding",
+          "type": "guided_exercise",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Хорошо, давай быструю версию 3-2-1.\n\nНазови 3 вещи, которые видишь, 2 которые слышишь, 1 которую чувствуешь."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "timer",
+              "duration_seconds": 60
+            }
+          ],
+          "on_timer_complete": {
+            "next_block": "post_grounding_check"
+          }
+        },
+
+        {
+          "id": "post_grounding_check",
+          "type": "check_in",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Как сейчас?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "anxiety_slider",
+              "id": "post_grounding_anxiety",
+              "min": 1,
+              "max": 10
+            }
+          ],
+          "on_submit": {
+            "log_journal_entry": {
+              "type": "technique_practice",
+              "technique_used": "grounding_321_quick",
+              "anxiety_before": "{{daily_anxiety}}",
+              "anxiety_after": "{{input}}",
+              "context": "daily_check_in"
+            },
+            "next_block": "check_in_complete"
+          }
+        },
+
+        {
+          "id": "supportive_conversation",
+          "type": "llm_conversation",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} хочет поговорить. Уровень тревоги: {{daily_anxiety}}/10.\n\nТвоя роль: эмпатичный слушатель. НЕ давай техники или советы, просто слушай и валидируй.\n\nПравила:\n1. Задавай открытые вопросы\n2. Отражай эмоции\n3. Не спеши решать проблему\n4. Через 3-4 обмена мягко предложи завершить на позитивной ноте или напомни о технике\n\nПроверяй на кризисные сигналы: {{global_config.crisis_keywords}}",
+            "max_turns": 5,
+            "check_crisis": true
+          },
+          "on_crisis_detected": {
+            "next_block": "crisis_response"
+          },
+          "next_block": "check_in_complete"
+        },
+
+        {
+          "id": "practice_check",
+          "type": "single_select",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Понял(а), {{input}} из 10. Применял(а) сегодня технику 5-4-3-2-1?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "practice_response",
+              "options": [
+                {"id": "yes", "text": "Да"},
+                {"id": "no", "text": "Нет"},
+                {"id": "no_need", "text": "Не было возможности"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "conditions": [
+              {"if": "input.id == 'yes'", "then": "log_practice"},
+              {"if": "input.id == 'no'", "then": "no_practice_response"},
+              {"if": "input.id == 'no_need'", "then": "check_in_complete"}
+            ]
+          }
+        },
+
+        {
+          "id": "log_practice",
+          "type": "input_sequence",
+          "steps": [
+            {
+              "message": "Отлично! В какой ситуации?",
+              "ui": {"type": "text_input", "id": "situation"},
+              "save_to": "temp.situation"
+            },
+            {
+              "message": "Тревога до (1-10)?",
+              "ui": {"type": "number_input", "id": "before", "min": 1, "max": 10},
+              "save_to": "temp.before"
+            },
+            {
+              "message": "Тревога после?",
+              "ui": {"type": "number_input", "id": "after", "min": 1, "max": 10},
+              "save_to": "temp.after"
+            }
+          ],
+          "on_complete": {
+            "log_journal_entry": {
+              "type": "technique_practice",
+              "technique_used": "grounding_54321",
+              "situation": "{{temp.situation}}",
+              "anxiety_before": "{{temp.before}}",
+              "anxiety_after": "{{temp.after}}",
+              "context": "daily_check_in"
+            },
+            "next_block": "practice_feedback"
+          }
+        },
+
+        {
+          "id": "practice_feedback",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "Пользователь применил технику.\nСитуация: {{temp.situation}}\nДо: {{temp.before}}, После: {{temp.after}}\n\nДай короткую позитивную обратную связь (1-2 предложения). Если было снижение — отметь. Если нет — нормализуй.",
+            "temperature": 0.6
+          },
+          "next_block": "check_in_complete"
+        },
+
+        {
+          "id": "no_practice_response",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nПользователь {{user_profile.name}} не практиковал технику сегодня.\n\nТвоя задача:\n1. НЕ критиковать\n2. Коротко спросить, что помешало (забыл, не было тревоги, не захотел)\n3. Предложить одну простую стратегию\n\nФормат: 2 предложения.",
+            "temperature": 0.6
+          },
+          "follow_up": {
+            "type": "single_select",
+            "options": [
+              {"id": "forgot", "text": "Забыл(а)"},
+              {"id": "no_anxiety", "text": "Не было тревоги"},
+              {"id": "no_time", "text": "Было некогда"},
+              {"id": "didnt_want", "text": "Не захотел(а)"}
+            ],
+            "on_submit": {
+              "llm_config": {
+                "system_prompt": "Пользователь выбрал причину: {{input.id}}.\n\nДай персонализированный совет:\n- forgot: предложить напоминание\n- no_anxiety: отлично, можно практиковать профилактически\n- no_time: быстрая версия 3-2-1\n- didnt_want: валидировать, спросить о барьерах\n\n1-2 предложения, тёплый тон."
+              }
+            }
+          },
+          "next_block": "check_in_complete"
+        },
+
+        {
+          "id": "check_in_complete",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Записал. Спокойной ночи! 🌙"
+            }
+          ]
+        },
+
+        {
+          "id": "crisis_response",
+          "type": "crisis_protocol",
+          "messages": [
+            {
+              "type": "text",
+              "content": "{{user_profile.name}}, я вижу, что тебе сейчас очень тяжело. Я здесь.\n\nПрежде всего: ты в безопасности прямо сейчас?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "id": "safety_check",
+              "options": [
+                {"id": "yes", "text": "Да"},
+                {"id": "unsure", "text": "Не уверен(а)"},
+                {"id": "need_help", "text": "Нужна помощь"}
+              ]
+            }
+          ],
+          "on_submit": {
+            "conditions": [
+              {
+                "if": "input.id == 'need_help' || input.id == 'unsure'",
+                "then": "show_resources"
+              },
+              {
+                "if": "input.id == 'yes'",
+                "then": "crisis_support"
+              }
+            ]
+          }
+        },
+
+        {
+          "id": "show_resources",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Я рад(а), что ты сказал(а). Твоё состояние сейчас требует живой поддержки."
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "resource_card",
+              "id": "crisis_resources",
+              "resources": [
+                {
+                  "name": "Телефон экстренной психологической помощи",
+                  "phone": "8-800-2000-122",
+                  "note": "бесплатно, анонимно, круглосуточно"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "content": "Или напиши близкому человеку, которому доверяешь.\n\nЯ останусь здесь. Хочешь, пока побудем вместе?"
+            }
+          ],
+          "log_event": {
+            "type": "crisis_detected",
+            "severity": "high",
+            "response_shown": "resources"
+          }
+        },
+
+        {
+          "id": "crisis_support",
+          "type": "llm_conversation",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКРИЗИСНЫЙ ПРОТОКОЛ. Пользователь в тяжёлом состоянии, но говорит, что в безопасности.\n\nПравила:\n1. Будь рядом. Не давай советов и техник.\n2. Слушай и валидируй\n3. Не оставляй пользователя одного резко\n4. Через несколько обменов мягко предложи ресурсы или отдых\n5. Продолжай мониторить кризисные сигналы\n\nЕсли появятся кризисные сигналы — немедленно предложи ресурсы.",
+            "temperature": 0.5,
+            "max_turns": 10,
+            "check_crisis": true
+          }
+        }
+      ]
+    },
+
+    "technique_reminder": {
+      "id": "technique_reminder",
+      "trigger": {
+        "type": "scheduled",
+        "conditions": ["user_requested_reminder", "no_practice_48h"]
+      },
+      "notification": {
+        "title": "Момент для практики",
+        "body": "{{user_profile.name}}, даже если сейчас всё ок — это тренировка на будущее"
+      },
+      "blocks": [
+        {
+          "id": "reminder_prompt",
+          "type": "static",
+          "messages": [
+            {
+              "type": "text",
+              "content": "Привет! Напоминаю о практике 5-4-3-2-1. Хочешь пройти сейчас?"
+            }
+          ],
+          "ui_components": [
+            {
+              "type": "button_group",
+              "options": [
+                {"id": "yes", "text": "Да, давай"},
+                {"id": "later", "text": "Позже"},
+                {"id": "disable", "text": "Отключить напоминания"}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    "engagement_recovery": {
+      "id": "engagement_recovery",
+      "trigger": {
+        "type": "condition",
+        "conditions": {
+          "days_inactive": 3,
+          "journal_entries_last_week": 0
+        }
+      },
+      "notification": {
+        "title": "Мы по тебе скучаем",
+        "body": "{{user_profile.name}}, как дела? Заглянешь?"
+      },
+      "blocks": [
+        {
+          "id": "recovery_message",
+          "type": "llm_response",
+          "llm_config": {
+            "system_prompt": "{{global_config.system_prompt_base}}\n\nКонтекст: Пользователь {{user_profile.name}} не заходил {{days_inactive}} дней.\n\nИх прогресс:\n- Сессии: {{user_profile.progress.sessions_completed}}\n- Техники: {{user_profile.progress.techniques_learned}}\n\nТвоя задача:\n1. Тёплое приветствие без давления\n2. Не спрашивай «что случилось» — это может вызвать чувство вины\n3. Напомни об одном конкретном достижении\n4. Предложи маленький следующий шаг (не полную сессию)\n\nФормат: 3-4 предложения, лёгкий тон.",
+            "temperature": 0.7
+          },
+          "ui_components": [
+            {
+              "type": "button_group",
+              "options": [
+                {"id": "continue", "text": "Продолжить курс"},
+                {"id": "quick_checkin", "text": "Быстрый check-in"},
+                {"id": "not_now", "text": "Не сейчас"}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+
+  "computations": {
+    "calculate_gad7": {
+      "description": "Calculate GAD-7 score and severity",
+      "input": "gad7_responses object with q1-q7",
+      "logic": {
+        "score": "sum(q1, q2, q3, q4, q5, q6, q7)",
+        "severity": {
+          "0-4": "minimal",
+          "5-9": "mild",
+          "10-14": "moderate",
+          "15-21": "severe"
+        }
+      },
+      "output": {
+        "score": "number",
+        "severity": "string"
+      }
+    },
+
+    "calculate_technique_effect": {
+      "description": "Calculate technique effectiveness",
+      "input": {
+        "before": "anxiety score before",
+        "after": "anxiety score after"
+      },
+      "logic": {
+        "reduction": "before - after",
+        "reduction_percent": "round((before - after) / before * 100)"
+      },
+      "output": {
+        "reduction": "number",
+        "reduction_percent": "number"
+      }
+    },
+
+    "analyze_cognitive_profile": {
+      "description": "Analyze user's cognitive distortion patterns",
+      "input": {
+        "thoughts": "array of user thoughts",
+        "journal_entries": "array of journal entries"
+      },
+      "logic": "LLM analysis with structured output",
+      "output": {
+        "distortion_scores": "object",
+        "top_distortions": "array",
+        "primary_focus": "string"
+      }
+    }
+  },
+
+  "ui_component_specs": {
+    "anxiety_slider": {
+      "type": "slider",
+      "visual": "gradient from green (1) to red (10)",
+      "labels_at": [1, 5, 10],
+      "haptic_feedback": true,
+      "show_value": true
+    },
+
+    "anxiety_map_diagram": {
+      "type": "interactive_diagram",
+      "layout": "circular_flow",
+      "nodes": ["triggers", "thoughts", "body", "behavior"],
+      "connections": "arrows showing cycle",
+      "user_data_populated": true,
+      "tap_to_expand": true
+    },
+
+    "cognitive_profile_card": {
+      "type": "card",
+      "sections": [
+        {
+          "type": "bar_chart",
+          "data": "distortion_scores",
+          "colors": {
+            "mind_reading": "#6366f1",
+            "catastrophizing": "#ef4444",
+            "black_white": "#8b5cf6",
+            "fortune_telling": "#f59e0b"
+          }
+        },
+        {
+          "type": "examples_list",
+          "data": "top_distortions[].examples",
+          "quoted_style": true
+        },
+        {
+          "type": "focus_banner",
+          "data": "primary_focus",
+          "style": "highlighted"
+        }
+      ]
+    },
+
+    "before_after_chart": {
+      "type": "comparison_visual",
+      "bars": ["before", "after"],
+      "animation": "grow_from_zero",
+      "highlight_change": true,
+      "show_percentage_badge": true
+    },
+
+    "breathing_animation": {
+      "type": "animation",
+      "visual": "expanding_circle",
+      "phases": {
+        "inhale": {"duration": "inhale_seconds", "instruction": "Вдох..."},
+        "exhale": {"duration": "exhale_seconds", "instruction": "Выдох..."}
+      },
+      "audio_optional": true
+    },
+
+    "card_carousel": {
+      "type": "horizontal_scroll",
+      "card_width": "85%",
+      "snap_to_card": true,
+      "indicator_dots": true
+    },
+
+    "practice_summary_table": {
+      "type": "table",
+      "columns": [
+        {"id": "situation", "label": "Ситуация", "truncate": 30},
+        {"id": "anxiety_before", "label": "До"},
+        {"id": "anxiety_after", "label": "После"},
+        {"id": "effect", "label": "Эффект", "format": "percentage_badge"}
+      ],
+      "max_rows": 5,
+      "expandable": true
+    }
+  },
+
+  "llm_prompt_templates": {
+    "empathetic_validation": {
+      "template": "Пользователь {{user_profile.name}} сказал: \"{{user_input}}\"\n\nОтветь эмпатично:\n1. Отрази их чувства (1 предложение)\n2. Нормализуй опыт (1 предложение)\n3. [Следующее действие по контексту]\n\nТон: тёплый, не покровительственный.",
+      "variables": ["user_profile.name", "user_input"]
+    },
+
+    "thought_analysis": {
+      "template": "Проанализируй мысль пользователя: \"{{thought}}\"\n\nОпредели:\n1. Тип когнитивного искажения (mind_reading, catastrophizing, black_white, fortune_telling)\n2. Уровень уверенности (0-100%)\n3. Связанную эмоцию\n4. Альтернативную, более сбалансированную мысль\n\n[META]{\"distortion\": \"тип\", \"confidence\": число, \"emotion\": \"эмоция\", \"alternative\": \"мысль\"}[/META]",
+      "variables": ["thought"],
+      "extract_metadata": true
+    },
+
+    "socratic_questioning": {
+      "template": "Пользователь {{user_profile.name}} выразил мысль: \"{{thought}}\"\n\nПроведи сократовский диалог:\n1. Не оспаривай напрямую\n2. Задай один вопрос, который поможет пользователю самому увидеть искажение\n3. Типы вопросов:\n   - «Какие доказательства за и против?»\n   - «Что бы ты сказал другу в такой ситуации?»\n   - «Какой самый вероятный исход?»\n   - «Как ты будешь смотреть на это через год?»\n\nВыбери наиболее подходящий вопрос для этой конкретной мысли.",
+      "variables": ["user_profile.name", "thought"]
+    },
+
+    "personalized_example": {
+      "template": "Объясни концепцию \"{{concept}}\" пользователю {{user_profile.name}}.\n\nИспользуй их конкретные данные:\n- Триггеры: {{user_profile.onboarding_data.triggers}}\n- Мысли: {{user_profile.onboarding_data.thoughts}}\n- Симптомы: {{user_profile.onboarding_data.physical_symptoms}}\n\nСделай объяснение максимально релевантным их опыту. Не используй абстрактные примеры — только их ситуации.",
+      "variables": ["concept", "user_profile"]
+    },
+
+    "progress_reflection": {
+      "template": "Подведи итог прогресса пользователя {{user_profile.name}}.\n\nДанные:\n- Начальный GAD-7: {{user_profile.onboarding_data.gad7_score}}\n- Текущий GAD-7: {{current_gad7}}\n- Практик техники: {{user_profile.progress.technique_effectiveness.grounding_54321.uses}}\n- Средняя эффективность: {{user_profile.progress.technique_effectiveness.grounding_54321.avg_reduction}}%\n- Выявленные паттерны: {{user_profile.cognitive_profile.top_distortions}}\n\nСоздай мотивирующее, но честное резюме:\n1. Отметь конкретные достижения\n2. Признай сложности, если были\n3. Укажи направление дальнейшей работы\n\nТон: воодушевляющий, но реалистичный.",
+      "variables": ["user_profile", "current_gad7"]
+    }
+  }
+}
