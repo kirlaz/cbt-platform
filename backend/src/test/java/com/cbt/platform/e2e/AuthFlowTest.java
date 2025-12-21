@@ -54,7 +54,7 @@ class AuthFlowTest extends BaseIntegrationTest {
         assertThat(registerResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(registerResponse.getBody()).isNotNull();
         assertThat(registerResponse.getBody().email()).isEqualTo(email);
-        assertThat(registerResponse.getBody().fullName()).isEqualTo("John Doe");
+        assertThat(registerResponse.getBody().name()).isEqualTo("John Doe");
         assertThat(registerResponse.getHeaders().getLocation()).isNotNull();
 
         // Step 2: Login with registered credentials

@@ -143,3 +143,6 @@ claude --no-run
 ❌ session   — не начат
 ❌ blocks    — не начат
 ```
+
+
+

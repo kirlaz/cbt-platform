@@ -75,7 +75,9 @@ class ProgressServiceTest {
                 testProgress.getIsCompleted(),
                 testProgress.getStartedAt(),
                 testProgress.getCompletedAt(),
-                testProgress.getLastActivityAt()
+                testProgress.getLastActivityAt(),
+                testProgress.getCreatedAt(),
+                testProgress.getUpdatedAt()
         );
     }
 
@@ -212,6 +214,7 @@ class ProgressServiceTest {
         UpdateProgressRequest request = new UpdateProgressRequest(
                 "session_2",
                 5,
+                null,
                 50
         );
         when(progressRepository.findByUserIdAndCourseId(userId, courseId))

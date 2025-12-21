@@ -303,17 +303,17 @@ Backend модуль для создания, редактирования, ва
 ✅ Config module - COMPLETED
 ✅ Course module - COMPLETED
 ✅ Progress module - COMPLETED
-✅ Database migrations - COMPLETED (V1-V4)
-⚠️ Editor module - IN PROGRESS
-  ├─ ⚠️ Entity layer (ScenarioDraft, ScenarioDraftVersion, BlockTemplate)
-  ├─ ⚠️ Repository layer
-  ├─ ⚠️ Service layer (ScenarioEditorService, ScenarioValidationService)
-  ├─ ⚠️ Controller layer (REST API)
-  └─ ⚠️ Database migration (V5)
-⏭️ Next: Frontend для редактора, затем Engine и LLM modules
+✅ Database migrations - COMPLETED (V1-V5)
+✅ Editor module - COMPLETED
+  ├─ ✅ Entity layer (ScenarioDraft, ScenarioDraftVersion, BlockTemplate)
+  ├─ ✅ Repository layer
+  ├─ ✅ Service layer (ScenarioEditorService, ScenarioValidationService, BlockTemplateService)
+  ├─ ✅ Controller layer (REST API)
+  └─ ✅ Database migration (V5)
+⏭️ Next: Engine и LLM modules, затем Frontend для редактора
 
 ### Blockers
-None - Core infrastructure ready for editor implementation
+None - Backend core ready for engine implementation
 
 ---
 
@@ -328,7 +328,7 @@ None - Core infrastructure ready for editor implementation
 | security | - | - | ✅ (JWT Provider, UserDetailsService, Filter) | - | ❌ |
 | course | ✅ | ✅ | ✅ | ✅ | ❌ |
 | progress | ✅ (UserProgress + userData JSONB) | ✅ | ✅ | ✅ | ❌ |
-| editor | ⚠️ (In Progress) | ⚠️ | ⚠️ | ⚠️ | ❌ |
+| editor | ✅ (Draft, Version, Template) | ✅ | ✅ (Editor, Validation, Template) | ✅ (2 controllers) | ❌ |
 | session | ❌ | ❌ | ❌ | ❌ | ❌ |
 | checkin | ❌ | ❌ | ❌ | ❌ | ❌ |
 | engine | ❌ | - | ❌ | - | ❌ |
@@ -361,12 +361,24 @@ None - Core infrastructure ready for editor implementation
   - User data merge/replace functionality
   - Full REST API for progress management
 
+- ✅ **Editor module** - Visual scenario editor for content creators
+  - ScenarioDraft, ScenarioDraftVersion, BlockTemplate entities
+  - Full CRUD for drafts with version history
+  - Scenario validation service (structure validation)
+  - Draft publishing to courses
+  - Block template library for quick building
+  - REST API endpoints:
+    - `/api/editor/drafts` - Draft management (CRUD, validate, publish, versions)
+    - `/api/editor/templates/blocks` - Block template management
+  - Role-based access (ADMIN, EDITOR)
+
 **Database:**
 - ✅ **Flyway migrations created**:
   - V1: users table (email, password_hash, role, soft delete)
   - V2: courses table (slug, scenario_json JSONB, version, pricing)
   - V3: seed admin user (admin@cbt.com / Admin123!)
   - V4: user_progress table (userData JSONB, completion tracking, foreign keys)
+  - V5: editor tables (scenario_drafts, scenario_draft_versions, block_templates)
 - ✅ **Application compiles successfully**
 - ✅ **TEST_API.md** created with API testing guide
 

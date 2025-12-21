@@ -247,7 +247,7 @@ class ProgressControllerIT extends BaseIntegrationTest {
         UserProgress progress = TestDataBuilder.userProgress(testUser.getId(), testCourse.getId());
         progressRepository.save(progress);
 
-        UpdateProgressRequest request = new UpdateProgressRequest("session_2", 5, 50);
+        UpdateProgressRequest request = new UpdateProgressRequest("session_2", 5, null, 50);
 
         // When
         ResponseEntity<ProgressResponse> response = restTemplate.exchange(

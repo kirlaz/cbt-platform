@@ -28,7 +28,7 @@ public class TestDataBuilder {
                 .id(UUID.randomUUID())
                 .email("test@example.com")
                 .passwordHash("$2a$10$hashedPassword")
-                .fullName("Test User")
+                .name("Test User")
                 .role(UserRole.USER)
                 .isActive(true)
                 .timezone("UTC")
@@ -60,13 +60,13 @@ public class TestDataBuilder {
         return Course.builder()
                 .id(UUID.randomUUID())
                 .slug("test-course")
-                .title("Test Course")
+                .name("Test Course")
                 .description("Test course description")
                 .category("test")
-                .difficultyLevel("beginner")
+                .scenarioJson(objectMapper.createObjectNode())
                 .estimatedDurationMinutes(30)
-                .isPremium(false)
                 .version("1.0.0")
+                .isActive(true)
                 .isPublished(true)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now());
@@ -76,18 +76,18 @@ public class TestDataBuilder {
         return defaultCourse().build();
     }
 
-    public static Course course(String slug, String title) {
+    public static Course course(String slug, String name) {
         return defaultCourse()
                 .slug(slug)
-                .title(title)
+                .name(name)
                 .build();
     }
 
     public static Course premiumCourse() {
         return defaultCourse()
                 .slug("premium-course")
-                .title("Premium Course")
-                .isPremium(true)
+                .name("Premium Course")
+                .price(java.math.BigDecimal.valueOf(99.99))
                 .build();
     }
 

@@ -85,13 +85,13 @@ class UserManagementFlowTest extends BaseIntegrationTest {
 
         assertThat(updateResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(updateResponse.getBody()).isNotNull();
-        assertThat(updateResponse.getBody().fullName()).isEqualTo("Updated Name");
+        assertThat(updateResponse.getBody().name()).isEqualTo("Updated Name");
         assertThat(updateResponse.getBody().timezone()).isEqualTo("America/New_York");
         assertThat(updateResponse.getBody().preferredLanguage()).isEqualTo("es");
 
         // Step 4: Verify update in database
         User updatedUser = userRepository.findById(regularUser.getId()).orElseThrow();
-        assertThat(updatedUser.getFullName()).isEqualTo("Updated Name");
+        assertThat(updatedUser.getName()).isEqualTo("Updated Name");
 
         // Step 5: Admin deletes user (soft delete)
         ResponseEntity<Void> deleteResponse = restTemplate.exchange(
@@ -137,7 +137,7 @@ class UserManagementFlowTest extends BaseIntegrationTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().id()).isEqualTo(regularUser.getId());
         assertThat(response.getBody().email()).isEqualTo(regularUser.getEmail());
-        assertThat(response.getBody().fullName()).isEqualTo(regularUser.getFullName());
+        assertThat(response.getBody().name()).isEqualTo(regularUser.getName());
     }
 
     @Test
@@ -288,13 +288,13 @@ class UserManagementFlowTest extends BaseIntegrationTest {
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().fullName()).isEqualTo("New Name");
+        assertThat(response.getBody().name()).isEqualTo("New Name");
         assertThat(response.getBody().timezone()).isEqualTo("Europe/London");
         assertThat(response.getBody().preferredLanguage()).isEqualTo("fr");
 
         // Verify in database
         User updated = userRepository.findById(regularUser.getId()).orElseThrow();
-        assertThat(updated.getFullName()).isEqualTo("New Name");
+        assertThat(updated.getName()).isEqualTo("New Name");
         assertThat(updated.getTimezone()).isEqualTo("Europe/London");
         assertThat(updated.getPreferredLanguage()).isEqualTo("fr");
     }
@@ -321,7 +321,7 @@ class UserManagementFlowTest extends BaseIntegrationTest {
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().fullName()).isEqualTo("Only Name Changed");
+        assertThat(response.getBody().name()).isEqualTo("Only Name Changed");
         // Other fields should remain unchanged
         assertThat(response.getBody().timezone()).isEqualTo(regularUser.getTimezone());
     }
@@ -506,7 +506,7 @@ class UserManagementFlowTest extends BaseIntegrationTest {
         User updated = userRepository.findById(regularUser.getId()).orElseThrow();
         assertThat(updated.getEmail()).isEqualTo(originalEmail);
         assertThat(updated.getRole()).isEqualTo(originalRole);
-        assertThat(updated.getFullName()).isEqualTo("New Name");
+        assertThat(updated.getName()).isEqualTo("New Name");
     }
 
     @Test

@@ -42,7 +42,7 @@ public abstract class BaseIntegrationTest {
         User user = User.builder()
                 .email(email)
                 .passwordHash(passwordEncoder.encode(password))
-                .fullName("Test User")
+                .name("Test User")
                 .role(role)
                 .isActive(true)
                 .timezone("UTC")
