@@ -12,7 +12,7 @@ INSERT INTO users (
     is_active
 ) VALUES (
     'admin@cbt.com',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', -- Admin123!
+    '$2a$10$umaC.vExUhp5G/MmXw2w/uIKIwajqH1XFbQjM/iiCA8AV/3CF5gmu', -- Admin123!
     'System Administrator',
     'UTC',
     'ru',

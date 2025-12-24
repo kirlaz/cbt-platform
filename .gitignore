@@ -27,5 +27,7 @@ redis_data/
 *.swp
 *~
 
+backend/target
+
 nul
 NUL

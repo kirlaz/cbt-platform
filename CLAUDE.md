@@ -26,7 +26,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Backend
 cd backend && ./mvnw spring-boot:run
 
-# Mobile
+# Scenario Editor (Web)
+cd scenario-editor-front && npm install && npm run dev
+
+# Mobile App
 cd mobile && npx expo start
 ```
 
@@ -36,8 +39,8 @@ cd mobile && npx expo start
 cbt-platform/
 ├── backend/                 # Java Spring Boot API
 │   ├── CONVENTIONS.md       # Конвенции backend
-	└── src/main/resources/scenarios	# Версии сценариев курса
-│       ├── anxiety         # Сценарии для курса Управление тревогой и стрессом на работе и в повседневной жизни		
+│   └── src/main/resources/scenarios	# Версии сценариев курса
+│       └── anxiety         # Сценарии для курса Управление тревогой и стрессом на работе и в повседневной жизни
 │   └── src/main/java/com/cbt/platform/
 │       ├── config/          # Конфигурации
 │       ├── security/        # JWT, auth
@@ -53,8 +56,18 @@ cbt-platform/
 │       ├── gamification/    # Streaks, achievements
 │       ├── engine/          # CourseEngine (ядро)
 │       ├── llm/             # Claude API интеграция
-│       └── editor/          # Scenario Editor (визуальный редактор сценариев)
-├── mobile/                  # React Native + Expo
+│       └── editor/          # Scenario Editor backend (API для визуального редактора)
+├── scenario-editor-front/   # React Web App (визуальный редактор сценариев)
+│   ├── GETTING_STARTED.md   # Инструкция по запуску
+│   └── src/
+│       ├── components/      # UI компоненты
+│       │   └── layout/      # Layout (Header, Sidebar)
+│       ├── pages/           # Страницы (Login, Drafts, Editor, Templates)
+│       ├── services/        # API интеграция
+│       ├── store/           # Zustand stores
+│       ├── types/           # TypeScript типы
+│       └── App.tsx          # Root component with routing
+├── mobile/                  # React Native + Expo (мобильное приложение для пользователей)
 │   ├── CONVENTIONS.md       # Конвенции frontend
 │   └── src/
 │       ├── screens/         # Экраны
@@ -78,7 +91,8 @@ cbt-platform/
 | Layer | Technology |
 |-------|------------|
 | Backend | Java 21, Spring Boot 3.2, PostgreSQL 16, Redis 7 |
-| Frontend | React Native 0.73, Expo 50, TypeScript 5, Zustand 4 |
+| Editor Frontend | React 18, Vite 5, TypeScript 5, Material-UI 5, Zustand 4 |
+| Mobile Frontend | React Native 0.73, Expo 50, TypeScript 5, Zustand 4 |
 | LLM | Claude API (claude-3-5-sonnet) |
 | Auth | JWT |
 | Payments | RevenueCat |
@@ -144,7 +158,17 @@ GET                  /api/editor/templates/blocks         # Шаблоны бл�
 | `backend/src/.../{module}/entity/*.java` | JPA entities | UUID ids, JSONB fields, audit timestamps |
 | `backend/src/.../common/exception/BaseException.java` | Base для всех бизнес-exceptions | Carries HTTP status + error code |
 
-### Frontend Architecture
+### Scenario Editor Frontend Architecture
+| File Path Pattern | Purpose | Key Pattern |
+|-------------------|---------|-------------|
+| `scenario-editor-front/src/services/api.ts` | Axios client with JWT interceptors | Auto-adds token, handles 401 refresh |
+| `scenario-editor-front/src/services/*Service.ts` | API integration for each domain | draftService, templateService, authService |
+| `scenario-editor-front/src/store/*Store.ts` | Zustand state management | authStore, draftStore, templateStore |
+| `scenario-editor-front/src/pages/*Page.tsx` | Page components (routes) | LoginPage, DraftsPage, EditorPage, TemplatesPage |
+| `scenario-editor-front/src/components/layout/Layout.tsx` | Main layout with sidebar | AppBar + Drawer + Outlet |
+| `scenario-editor-front/src/types/*.ts` | TypeScript type definitions | auth, draft, block, template, api types |
+
+### Mobile App Frontend Architecture
 | File Path Pattern | Purpose | Key Pattern |
 |-------------------|---------|-------------|
 | `mobile/src/components/blocks/BlockRenderer.tsx` | Диспетчер рендеринга | Maps BlockType → Component (lookup object) |
@@ -156,8 +180,8 @@ GET                  /api/editor/templates/blocks         # Шаблоны бл�
 
 ### Critical Conventions
 - **Backend**: ALL module creation follows package structure in `CONVENTIONS.md`
-- **Frontend**: ALL components use TypeScript interfaces (not types) for props
-- **Both**: Check respective `CONVENTIONS.md` before creating new files
+- **Mobile Frontend**: ALL components use TypeScript interfaces (not types) for props (see `CONVENTIONS.md`)
+- **Editor Frontend**: React + TypeScript + Material-UI standard patterns
 
 ## Testing Strategy
 
@@ -281,6 +305,11 @@ JWT_SECRET
 CLAUDE_API_KEY
 ```
 
+### Scenario Editor Frontend
+```
+VITE_API_URL=http://localhost:8080/api
+```
+
 ### Mobile
 ```
 API_URL
@@ -290,11 +319,10 @@ EXPO_PUBLIC_REVENUECAT_KEY
 ---
 
 ## Current Focus
-Реализация визуального редактора сценариев (Scenario Editor) для психологов/контент-мейкеров.
-Backend модуль для создания, редактирования, валидации и публикации JSON сценариев курсов.
+✅ Реализация визуального редактора сценариев (Scenario Editor) для психологов/контент-мейкеров - **COMPLETED**
 
 ### Sprint Goal
-Реализовать MVP backend модуля Scenario Editor с базовым CRUD, валидацией и публикацией в Course.
+✅ Реализовать MVP Scenario Editor (Backend + Frontend) с базовым CRUD, валидацией и публикацией в Course - **COMPLETED**
 
 ### Working On
 ✅ User module - COMPLETED
@@ -304,16 +332,25 @@ Backend модуль для создания, редактирования, ва
 ✅ Course module - COMPLETED
 ✅ Progress module - COMPLETED
 ✅ Database migrations - COMPLETED (V1-V5)
-✅ Editor module - COMPLETED
+✅ Editor Backend module - COMPLETED
   ├─ ✅ Entity layer (ScenarioDraft, ScenarioDraftVersion, BlockTemplate)
   ├─ ✅ Repository layer
   ├─ ✅ Service layer (ScenarioEditorService, ScenarioValidationService, BlockTemplateService)
   ├─ ✅ Controller layer (REST API)
   └─ ✅ Database migration (V5)
-⏭️ Next: Engine и LLM modules, затем Frontend для редактора
+✅ Editor Frontend (Web App) - COMPLETED
+  ├─ ✅ Project setup (React + Vite + TypeScript + Material-UI)
+  ├─ ✅ API services layer (auth, drafts, templates)
+  ├─ ✅ State management (Zustand stores)
+  ├─ ✅ Authentication & routing
+  ├─ ✅ Pages: Login, Drafts list, Editor, Templates
+  ├─ ✅ Layout with sidebar navigation
+  └─ ✅ Validation & publishing UI
+
+⏭️ Next: Engine и LLM modules для обработки сценариев
 
 ### Blockers
-None - Backend core ready for engine implementation
+None - Editor MVP ready for testing
 
 ---
 
@@ -388,7 +425,17 @@ None - Backend core ready for engine implementation
 3. Implement Engine module (CourseEngine + BlockHandlers)
 4. Implement LLM module (Claude API integration)
 
-### Frontend
+### Scenario Editor Frontend (Web)
+| Module | Types | Service | Store | Pages | Components |
+|--------|-------|---------|-------|-------|------------|
+| auth | ✅ | ✅ | ✅ | ✅ (LoginPage) | ✅ (Layout) |
+| drafts | ✅ | ✅ | ✅ | ✅ (DraftsPage, EditorPage) | ✅ |
+| templates | ✅ | ✅ | ✅ | ✅ (TemplatesPage) | ✅ |
+| api | ✅ | ✅ (Axios client + interceptors) | - | - | - |
+
+**Status**: ✅ MVP Complete - Ready for testing
+
+### Mobile Frontend (React Native)
 | Module | Types | Service | Store | Screens | Components |
 |--------|-------|---------|-------|---------|------------|
 | auth | ✅ | ✅ | ✅ | ✅ | ✅ |

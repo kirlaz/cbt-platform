@@ -3,6 +3,9 @@ package com.cbt.platform.editor.controller;
 import com.cbt.platform.editor.dto.*;
 import com.cbt.platform.editor.entity.DraftStatus;
 import com.cbt.platform.editor.service.ScenarioEditorService;
+import com.cbt.platform.user.entity.User;
+import com.cbt.platform.user.exception.UserNotFoundException;
+import com.cbt.platform.user.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -32,6 +35,7 @@ import java.util.UUID;
 public class ScenarioDraftController {
 
     private final ScenarioEditorService editorService;
+    private final UserRepository userRepository;
 
     @GetMapping
     @Operation(summary = "Get all active drafts", description = "Retrieve all active scenario drafts")
@@ -183,7 +187,14 @@ public class ScenarioDraftController {
         return ResponseEntity.ok(restored);
     }
 
+    /**
+     * Get user ID from UserDetails (email)
+     * UserDetails.getUsername() returns email, not UUID
+     */
     private UUID getUserId(UserDetails userDetails) {
-        return UUID.fromString(userDetails.getUsername());
+        String email = userDetails.getUsername();
+        User user = userRepository.findActiveByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + email));
+        return user.getId();
     }
 }
