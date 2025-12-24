@@ -1,0 +1,6 @@
+  Что можно улучшить (Phase 2):
+  - Drag-and-drop для сессий
+  - Визуальный редактор блоков с формами
+  - Inline редактирование
+  - Real-time валидация
+  - Collaborative editing
