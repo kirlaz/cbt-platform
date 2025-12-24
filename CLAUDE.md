@@ -356,7 +356,19 @@ EXPO_PUBLIC_REVENUECAT_KEY
   ├─ ✅ SessionController (REST API)
   └─ ✅ UserProgressRepository
 
-⏭️ Next: LLM module для интеграции с Claude API
+✅ LLM module - COMPLETED
+  ├─ ✅ Multi-provider architecture (Strategy + Factory patterns)
+  ├─ ✅ ProviderType enum (CLAUDE, OPENAI, GEMINI, LOCAL)
+  ├─ ✅ LlmProvider interface + AbstractLlmProvider
+  ├─ ✅ ClaudeProvider (Anthropic Claude API integration)
+  ├─ ✅ LlmProviderFactory (auto-discovery & registration)
+  ├─ ✅ TemplateEngine ({{userData.field}} resolution)
+  ├─ ✅ PromptBuilder (template + userData → prompts)
+  ├─ ✅ LlmService facade (unified interface)
+  ├─ ✅ LLM handlers integration (LlmConversationBlockHandler, LlmResponseBlockHandler)
+  └─ ✅ Configuration (application.yml with env variables)
+
+⏭️ Next: Testing & Mobile app BlockRenderer
 
 ### Blockers
 None
@@ -445,6 +457,8 @@ None
 **Status**: ✅ MVP Complete - Ready for testing
 
 ### Mobile Frontend (React Native)
+Пока не делаем!
+
 | Module | Types | Service | Store | Screens | Components |
 |--------|-------|---------|-------|---------|------------|
 | auth | ✅ | ✅ | ✅ | ✅ | ✅ |
