@@ -347,10 +347,19 @@ EXPO_PUBLIC_REVENUECAT_KEY
   ├─ ✅ Layout with sidebar navigation
   └─ ✅ Validation & publishing UI
 
-⏭️ Next: Engine и LLM modules для обработки сценариев
+✅ Engine module - COMPLETED
+  ├─ ✅ BlockType enum (12 типов блоков)
+  ├─ ✅ BlockHandler interface + BlockResult DTO
+  ├─ ✅ Handlers для всех 12 типов блоков (STATIC, INPUT, SLIDER, SINGLE_SELECT, MULTI_SELECT, LLM_CONVERSATION, LLM_RESPONSE, EXERCISE, VISUALIZATION, CALCULATION, SESSION_COMPLETE, PAYWALL)
+  ├─ ✅ BlockHandlerRegistry (Strategy pattern)
+  ├─ ✅ CourseEngine service (orchestrator)
+  ├─ ✅ SessionController (REST API)
+  └─ ✅ UserProgressRepository
+
+⏭️ Next: LLM module для интеграции с Claude API
 
 ### Blockers
-None - Editor MVP ready for testing
+None
 
 ---
 
@@ -366,9 +375,9 @@ None - Editor MVP ready for testing
 | course | ✅ | ✅ | ✅ | ✅ | ❌ |
 | progress | ✅ (UserProgress + userData JSONB) | ✅ | ✅ | ✅ | ❌ |
 | editor | ✅ (Draft, Version, Template) | ✅ | ✅ (Editor, Validation, Template) | ✅ (2 controllers) | ❌ |
+| engine | ✅ (BlockType, BlockResult, DTOs) | - | ✅ (CourseEngine, BlockHandlerRegistry + 12 handlers) | ✅ (SessionController) | ❌ |
 | session | ❌ | ❌ | ❌ | ❌ | ❌ |
 | checkin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| engine | ❌ | - | ❌ | - | ❌ |
 | llm | - | - | ❌ | - | ❌ |
 
 **Completed Infrastructure:**
